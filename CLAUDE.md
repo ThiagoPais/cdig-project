@@ -1,0 +1,14 @@
+## SDD
+- Specs dir: `specs/` (feature folders `NNN-<slug>/` with spec.md, plan.md, tasks.md, progress.md)
+- Verify (all): `pio run`
+- Test: `none`
+- Lint: `none`
+- Typecheck: `none`
+- Build: `pio run`
+- Test file patterns: `test/**`
+- Commit convention: none established yet (single "Initial commit"); use a short imperative subject with the task ID
+- Documentation language: English
+- Never:
+  - Never weaken, skip, comment out or delete tests to make them pass.
+  - Never edit spec.md or plan.md without explicit approval.
+  - Never commit secrets or edit generated files.
