@@ -153,6 +153,7 @@ void Sweep::closeStep(bool settled, uint32_t nowMs, const PeriodResult& load,
         state_ = SweepState::Done;
         duty_ = 0;
         emit("SWEEP DONE");
+        printTable(true);
         return;
     }
     beginStep(next, nowMs);
@@ -217,7 +218,11 @@ void Sweep::onCommand(const Command& c, uint32_t nowMs) {
             }
             break;
         case CmdType::Results:
-            emit("no results yet");
+            if (rowCount_ == 0) {
+                emit("no results yet");
+            } else {
+                printTable(state_ == SweepState::Done);
+            }
             break;
         case CmdType::Temp:
             if (!haveMeasurement_) {
@@ -231,5 +236,57 @@ void Sweep::onCommand(const Command& c, uint32_t nowMs) {
                 emit(buf);
             }
             break;
+    }
+}
+
+// First adjacent pair of settled rows (ascending duty order, not-settled rows skipped) whose
+// load temperatures bracket the target, ends included; linear interpolation of the duty.
+bool Sweep::interpolateDuty(float targetC, float* percent) const {
+    const StepRow* prev = nullptr;
+    for (size_t i = 0; i < rowCount_; ++i) {
+        const StepRow& cur = rows_[i];
+        if (!cur.settled) continue;
+        if (prev != nullptr) {
+            const double a = prev->loadC;
+            const double b = cur.loadC;
+            const double lo = a < b ? a : b;
+            const double hi = a < b ? b : a;
+            if (targetC >= lo && targetC <= hi) {
+                const double da = countsToPercent(prev->dutyCounts);
+                const double db = countsToPercent(cur.dutyCounts);
+                *percent = static_cast<float>(b == a ? da : da + (targetC - a) * (db - da) / (b - a));
+                return true;
+            }
+        }
+        prev = &cur;
+    }
+    return false;
+}
+
+void Sweep::printTable(bool withTargets) {
+    char buf[128];
+    snprintf(buf, sizeof buf, "TABLE offset=%.2f C", static_cast<double>(offsetC_));
+    emit(buf);
+    emit("duty_pct duty_count load_C ambient_C load_adc ambient_adc settled");
+    for (size_t i = 0; i < rowCount_; ++i) {
+        const StepRow& r = rows_[i];
+        snprintf(buf, sizeof buf, "%.2f %u %.1f %.1f %.1f %.1f %s",
+                 static_cast<double>(countsToPercent(r.dutyCounts)), static_cast<unsigned>(r.dutyCounts),
+                 static_cast<double>(r.loadC), static_cast<double>(r.ambientC),
+                 static_cast<double>(r.loadCount), static_cast<double>(r.ambientCount),
+                 r.settled ? "yes" : "no");
+        emit(buf);
+    }
+    if (!withTargets) return;
+    for (float target : sweepcfg::kTargetsC) {
+        float percent = 0.0f;
+        if (interpolateDuty(target, &percent)) {
+            snprintf(buf, sizeof buf, "TARGET %.1f C: duty=%.1f %% (%u counts)", static_cast<double>(target),
+                     static_cast<double>(percent), static_cast<unsigned>(percentToCounts(percent)));
+        } else {
+            snprintf(buf, sizeof buf, "TARGET %.1f C: not reachable within the table",
+                     static_cast<double>(target));
+        }
+        emit(buf);
     }
 }

@@ -1,11 +1,14 @@
 #include <unity.h>
 #include <string>
+#include <string.h>
 #include <vector>
 
 #include "sweep.h"
 #include "commands.h"
 #include "measure.h"
 #include "sim_process.h"
+#include "duty.h"
+#include <stdio.h>
 
 namespace {
 
@@ -765,6 +768,451 @@ void test_D4_AC4_only_zero_sample_periods_still_time_out_at_2700_s() {
     TEST_ASSERT_EQUAL_UINT16(102, sw->dutyCounts());
 }
 
+
+// ---------------------------------------------------------------------------
+// T7: result table, interpolation, results command
+// ---------------------------------------------------------------------------
+
+static const char* kColumnLine = "duty_pct duty_count load_C ambient_C load_adc ambient_adc settled";
+static const size_t kNpos = static_cast<size_t>(-1);
+
+static size_t findPrefix(const char* prefix, size_t from = 0) {
+    size_t n = strlen(prefix);
+    for (size_t i = from; i < sink.lines.size(); i++)
+        if (sink.lines[i].compare(0, n, prefix) == 0) return i;
+    return kNpos;
+}
+
+static std::string expectedRowLine(size_t i) {
+    StepRow r = sw->row(i);
+    char buf[160];
+    snprintf(buf, sizeof buf, "%.2f %u %.1f %.1f %.1f %.1f %s", (double)countsToPercent(r.dutyCounts),
+             (unsigned)r.dutyCounts, (double)r.loadC, (double)r.ambientC, (double)r.loadCount,
+             (double)r.ambientCount, r.settled ? "yes" : "no");
+    return std::string(buf);
+}
+
+// Reference of the interpolation rule fixed for T7.
+static bool refInterp(float target, float* dutyPct) {
+    bool have = false;
+    StepRow prev{};
+    for (size_t i = 0; i < sw->rowCount(); i++) {
+        StepRow r = sw->row(i);
+        if (!r.settled) continue;
+        if (have) {
+            float lo = prev.loadC < r.loadC ? prev.loadC : r.loadC;
+            float hi = prev.loadC < r.loadC ? r.loadC : prev.loadC;
+            if (lo <= target && target <= hi) {
+                float da = countsToPercent(prev.dutyCounts), db = countsToPercent(r.dutyCounts);
+                *dutyPct = (r.loadC == prev.loadC) ? da : da + (target - prev.loadC) * (db - da) / (r.loadC - prev.loadC);
+                return true;
+            }
+        }
+        prev = r;
+        have = true;
+    }
+    return false;
+}
+
+// Asserts the table starting at index `head` (the TABLE line) lists every recorded row, in order.
+static void expectTableAt(size_t head, size_t* nextIdx) {
+    TEST_ASSERT_TRUE(head != kNpos);
+    TEST_ASSERT_TRUE(head + 1 + sw->rowCount() < sink.lines.size() + 1);
+    TEST_ASSERT_TRUE(sink.lines[head].find("offset=") != std::string::npos);
+    TEST_ASSERT_EQUAL_STRING(kColumnLine, sink.lines[head + 1].c_str());
+    for (size_t i = 0; i < sw->rowCount(); i++) {
+        TEST_ASSERT_TRUE(head + 2 + i < sink.lines.size());
+        TEST_ASSERT_EQUAL_STRING(expectedRowLine(i).c_str(), sink.lines[head + 2 + i].c_str());
+    }
+    *nextIdx = head + 2 + sw->rowCount();
+}
+
+static const float kTargets[3] = {55.0f, 60.0f, 65.0f};
+
+// Parses TARGET line at idx; returns true when reachable.
+static bool parseTarget(size_t idx, float target, float* duty, unsigned* counts) {
+    TEST_ASSERT_TRUE(idx < sink.lines.size());
+    char head[32];
+    snprintf(head, sizeof head, "TARGET %.1f C:", (double)target);
+    const std::string& l = sink.lines[idx];
+    TEST_ASSERT_TRUE_MESSAGE(l.compare(0, strlen(head), head) == 0, l.c_str());
+    if (l.find("not reachable within the table") != std::string::npos) return false;
+    float d = -1.0f;
+    unsigned c = 0;
+    char fmt[64];
+    snprintf(fmt, sizeof fmt, "TARGET %.1f C: duty=%%f %%%% (%%u counts)", (double)target);
+    int n = sscanf(l.c_str(), fmt, &d, &c);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(2, n, l.c_str());
+    *duty = d;
+    *counts = c;
+    return true;
+}
+
+// Checks the three TARGET lines at idx against the reference rule.
+static void expectTargetsMatchReference(size_t idx) {
+    for (int k = 0; k < 3; k++) {
+        float want = 0.0f;
+        bool reach = refInterp(kTargets[k], &want);
+        float got = 0.0f;
+        unsigned cnt = 0;
+        bool gotReach = parseTarget(idx + k, kTargets[k], &got, &cnt);
+        TEST_ASSERT_EQUAL_INT(reach ? 1 : 0, gotReach ? 1 : 0);
+        if (reach) {
+            TEST_ASSERT_FLOAT_WITHIN(0.06f, want, got);
+            TEST_ASSERT_TRUE((int)cnt >= (int)percentToCounts(want) - 3);
+            TEST_ASSERT_TRUE((int)cnt <= (int)percentToCounts(want) + 3);
+        }
+    }
+}
+
+// Runs a sweep with fixed per-row loads (ambient 25, hold load = holdLoad). noisy[i] rows alternate
+// load / load+2 so they never settle (and time out). startPct must be > 0 so the hold is not a row.
+static void runRows(float startPct, const float* loads, const bool* noisy, size_t nRows, float holdLoad = 25.0f) {
+    startAt(startPct);
+    int guard = 0, par = 0;
+    while (sw->state() != SweepState::Done && sw->state() != SweepState::Cutoff && guard++ < 11 * 2800) {
+        if (sw->state() == SweepState::HoldZero || sw->rowCount() >= nRows) {
+            tick(holdLoad, 25.0f);
+        } else {
+            size_t i = sw->rowCount();
+            float l = loads[i];
+            if (noisy && noisy[i]) l += (par++ % 2) ? 2.0f : 0.0f;
+            tick(l, 25.0f);
+        }
+    }
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+}
+
+static void runConstantSweep(float holdLoad, float amb = 25.0f) {
+    startAt(0.0f);
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 5000) tick(holdLoad, amb);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+}
+
+void test_AC5_table_printed_after_done_in_order_with_header_and_columns() {
+    startAt(0.0f);
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 5000) tick(25.75f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    size_t done = findPrefix("SWEEP DONE");
+    TEST_ASSERT_TRUE(done != kNpos);
+    size_t head = findPrefix("TABLE", done);
+    TEST_ASSERT_EQUAL_UINT32(done + 1, head);
+    TEST_ASSERT_TRUE(sink.lines[head].find("offset=0.75") != std::string::npos);
+    size_t next = 0;
+    expectTableAt(head, &next);
+    TEST_ASSERT_EQUAL_UINT32(11, sw->rowCount());
+    TEST_ASSERT_TRUE(next < sink.lines.size());
+    TEST_ASSERT_TRUE(sink.lines[next].compare(0, 6, "TARGET") == 0);
+    // the 25 % step shows 24.98 and its 1023 counts; every row shows corrected load 25.0
+    TEST_ASSERT_TRUE(sink.lines[head + 2 + 10].compare(0, 10, "24.98 1023") == 0);
+    TEST_ASSERT_EQUAL_STRING("0.00 0 25.0 25.0 941.2 923.0 yes", sink.lines[head + 2].c_str());
+    TEST_ASSERT_TRUE(sink.lines[head + 2 + 1].compare(0, 7, "2.49 10") == 0);
+}
+
+void test_AC5_table_marks_unsettled_rows_no() {
+    float loads[2] = {40.0f, 50.0f};
+    bool noisy[2] = {true, false};
+    runRows(22.5f, loads, noisy, 2);
+    TEST_ASSERT_EQUAL_UINT32(2, sw->rowCount());
+    TEST_ASSERT_FALSE(sw->row(0).settled);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    size_t len = sink.lines[head + 2].size();
+    TEST_ASSERT_TRUE(sink.lines[head + 2].compare(len - 3, 3, " no") == 0);
+    len = sink.lines[head + 3].size();
+    TEST_ASSERT_TRUE(sink.lines[head + 3].compare(len - 4, 4, " yes") == 0);
+}
+
+void test_AC5_table_for_start_n_has_only_recorded_rows() {
+    float loads[7] = {30, 31, 32, 33, 34, 35, 36};
+    runRows(10.0f, loads, nullptr, 7);
+    TEST_ASSERT_EQUAL_UINT32(7, sw->rowCount());
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    TEST_ASSERT_TRUE(sink.lines[head + 2].compare(0, 5, "10.00") == 0 || sink.lines[head + 2].compare(0, 5, "9.99 ") == 0 ||
+                     sink.lines[head + 2].compare(0, 5, "10.01") == 0);
+}
+
+void test_AC6_AC7_linear_process_interpolates_55_60_65_within_0_1_percent() {
+    // T = 25 + 200 * counts / 4095 (+ 0.4 sensor bias removed by the offset): 55,60,65 C at 15, 17.5, 20 %.
+    FirstOrderProcess proc(25.0f, 200.0f, 10.0f);
+    const float bias = 0.4f;
+    sw->onPeriod(1000, pr(proc.tempC + bias), pr(25.0f));
+    sw->onCommand(startCmd(0.0f), 1000);
+    g_now = 1000;
+    sink.lines.clear();
+    int ticks = 0;
+    while (sw->state() != SweepState::Done && sw->state() != SweepState::Cutoff && ticks < 20000) {
+        proc.step(sw->dutyCounts());
+        tick(proc.tempC + bias, 25.0f);
+        ticks++;
+    }
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    const float want[3] = {15.0f, 17.5f, 20.0f};
+    for (int k = 0; k < 3; k++) {
+        float d = 0.0f;
+        unsigned c = 0;
+        TEST_ASSERT_TRUE(parseTarget(next + k, kTargets[k], &d, &c));
+        TEST_ASSERT_FLOAT_WITHIN(0.1f, want[k], d);
+        TEST_ASSERT_TRUE((int)c >= (int)percentToCounts(want[k]) - 5);
+        TEST_ASSERT_TRUE((int)c <= (int)percentToCounts(want[k]) + 5);
+    }
+}
+
+void test_AC6_target_outside_table_is_not_reachable() {
+    runConstantSweep(25.0f);  // every row 25 C: 55, 60, 65 are above the table
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    TEST_ASSERT_EQUAL_STRING("TARGET 55.0 C: not reachable within the table", sink.lines[next].c_str());
+    TEST_ASSERT_EQUAL_STRING("TARGET 60.0 C: not reachable within the table", sink.lines[next + 1].c_str());
+    TEST_ASSERT_EQUAL_STRING("TARGET 65.0 C: not reachable within the table", sink.lines[next + 2].c_str());
+}
+
+void test_AC6_partly_reachable_only_65_beyond_table() {
+    // loads 40..62 monotonic: 55 and 60 reachable, 65 not
+    float loads[7] = {40, 45, 50, 54, 58, 60, 62};
+    runRows(10.0f, loads, nullptr, 7);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    expectTargetsMatchReference(next);
+    float d;
+    unsigned c;
+    TEST_ASSERT_TRUE(parseTarget(next, 55.0f, &d, &c));
+    TEST_ASSERT_TRUE(parseTarget(next + 1, 60.0f, &d, &c));
+    TEST_ASSERT_FALSE(parseTarget(next + 2, 65.0f, &d, &c));
+}
+
+void test_E5_fewer_than_two_settled_rows_is_not_reachable_single_row() {
+    float loads[1] = {60.0f};
+    runRows(25.0f, loads, nullptr, 1);
+    TEST_ASSERT_EQUAL_UINT32(1, sw->rowCount());
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    for (int k = 0; k < 3; k++) {
+        float d;
+        unsigned c;
+        TEST_ASSERT_FALSE(parseTarget(next + k, kTargets[k], &d, &c));
+    }
+}
+
+void test_E5_only_one_settled_row_of_two_is_not_reachable() {
+    float loads[2] = {54.0f, 70.0f};
+    bool noisy[2] = {true, false};  // first row never settles
+    runRows(22.5f, loads, noisy, 2);
+    TEST_ASSERT_EQUAL_UINT32(2, sw->rowCount());
+    TEST_ASSERT_FALSE(sw->row(0).settled);
+    TEST_ASSERT_TRUE(sw->row(1).settled);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    for (int k = 0; k < 3; k++) {
+        float d;
+        unsigned c;
+        TEST_ASSERT_FALSE(parseTarget(next + k, kTargets[k], &d, &c));
+    }
+}
+
+void test_E5_unsettled_rows_are_skipped_and_neighbours_paired() {
+    float loads[3] = {50.0f, 41.0f, 70.0f};
+    bool noisy[3] = {false, true, false};
+    runRows(20.0f, loads, noisy, 3);
+    TEST_ASSERT_EQUAL_UINT32(3, sw->rowCount());
+    TEST_ASSERT_FALSE(sw->row(1).settled);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    expectTargetsMatchReference(next);
+    // pair (50 C @ 20 %, 70 C @ 25 %): 55 C -> 21.25 %, 60 C -> 22.5 %, 65 C -> 23.75 % (within 0.1)
+    const float want[3] = {21.25f, 22.5f, 23.75f};
+    for (int k = 0; k < 3; k++) {
+        float d = 0.0f;
+        unsigned c = 0;
+        TEST_ASSERT_TRUE(parseTarget(next + k, kTargets[k], &d, &c));
+        TEST_ASSERT_FLOAT_WITHIN(0.1f, want[k], d);
+    }
+}
+
+void test_E5_non_monotonic_table_uses_first_bracketing_pair() {
+    // 10, 12.5, 15, ... % with loads 30, 56, 52, 70, ...: 55 C is bracketed by (30,56) first, also by
+    // (56,52) and (52,70) later. First pair: 10 + 25*2.5/26 = ~12.4 %; later pair would give ~13.1 %.
+    float loads[7] = {30, 56, 52, 70, 72, 74, 76};
+    runRows(10.0f, loads, nullptr, 7);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    expectTargetsMatchReference(next);
+    float d = 0.0f;
+    unsigned c = 0;
+    TEST_ASSERT_TRUE(parseTarget(next, 55.0f, &d, &c));
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 12.4f, d);
+    // 60 C: first bracketing pair is (52,70) at 15 %,17.5 % -> ~16.1 %
+    TEST_ASSERT_TRUE(parseTarget(next + 1, 60.0f, &d, &c));
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 16.1f, d);
+}
+
+void test_AC6_target_equal_to_row_load_gives_that_rows_duty() {
+    float loads[3] = {50.0f, 60.0f, 70.0f};
+    runRows(20.0f, loads, nullptr, 3);
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    float d = 0.0f;
+    unsigned c = 0;
+    TEST_ASSERT_TRUE(parseTarget(next + 1, 60.0f, &d, &c));
+    TEST_ASSERT_FLOAT_WITHIN(0.06f, countsToPercent(sw->row(1).dutyCounts), d);
+}
+
+void test_AC7_results_when_never_run_says_no_results_yet() {
+    sw->onCommand(cmd(CmdType::Results), 100);
+    TEST_ASSERT_TRUE(sink.anyHas("no results yet"));
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TABLE"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+}
+
+void test_AC7_results_during_hold_says_no_results_yet() {
+    startAt(0.0f);
+    tickN(10, 25.0f, 25.0f);
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    TEST_ASSERT_TRUE(sink.anyHas("no results yet"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+}
+
+void test_AC7_results_after_done_reprints_table_and_targets() {
+    float loads[7] = {40, 45, 50, 54, 58, 60, 62};
+    runRows(10.0f, loads, nullptr, 7);
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t head = findPrefix("TABLE");
+    TEST_ASSERT_EQUAL_UINT32(0, head);
+    size_t next = 0;
+    expectTableAt(head, &next);
+    TEST_ASSERT_TRUE(sink.lines[head].find("offset=0.00") != std::string::npos);
+    expectTargetsMatchReference(next);
+    TEST_ASSERT_EQUAL_UINT32(next + 3, sink.lines.size());
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+    TEST_ASSERT_EQUAL_UINT32(7, sw->rowCount());
+}
+
+void test_AC7_results_mid_run_prints_table_without_targets_and_keeps_running() {
+    startAt(0.0f);
+    tickN(120 * 3, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(3, sw->rowCount());
+    uint16_t duty = sw->dutyCounts();
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t next = 0;
+    expectTableAt(findPrefix("TABLE"), &next);
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TARGET"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Running);
+    TEST_ASSERT_EQUAL_UINT16(duty, sw->dutyCounts());
+}
+
+void test_AC7_results_after_stop_prints_table_without_targets() {
+    startAt(0.0f);
+    tickN(120 * 3, 25.0f, 25.0f);
+    sw->onCommand(cmd(CmdType::Stop), g_now);
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t next = 0;
+    expectTableAt(findPrefix("TABLE"), &next);
+    TEST_ASSERT_EQUAL_UINT32(3, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TARGET"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+}
+
+void test_AC7_results_after_cutoff_prints_table_without_targets() {
+    startAt(0.0f);
+    tickN(120 * 2, 25.0f, 25.0f);
+    tick(80.0f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Cutoff);
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t next = 0;
+    expectTableAt(findPrefix("TABLE"), &next);
+    TEST_ASSERT_EQUAL_UINT32(2, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TARGET"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Cutoff);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+}
+
+// Forwards lines to a RecSink unless `drop` is set (a client that is not listening).
+struct DropSink : LineSink {
+    RecSink* inner = nullptr;
+    bool drop = false;
+    void line(const char* text) override {
+        if (!drop) inner->line(text);
+    }
+};
+static DropSink dropSink;
+
+void test_E10_results_prints_full_table_after_output_was_discarded() {
+    delete sw;
+    dropSink.inner = &sink;
+    dropSink.drop = false;
+    sw = new Sweep(dropSink);
+    sw->begin(0);
+    float loads[7] = {40, 45, 50, 54, 58, 60, 62};
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sw->onCommand(startCmd(10.0f), 1000);
+    g_now = 1000;
+    dropSink.drop = true;
+    sink.lines.clear();
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 5000) {
+        float l = (sw->state() == SweepState::HoldZero) ? 25.0f : loads[sw->rowCount()];
+        tick(l, 25.0f);
+    }
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    TEST_ASSERT_EQUAL_UINT32(0, sink.lines.size());  // nothing reached the client
+    dropSink.drop = false;
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t next = 0;
+    expectTableAt(findPrefix("TABLE"), &next);
+    expectTargetsMatchReference(next);
+    TEST_ASSERT_EQUAL_UINT32(7, sw->rowCount());
+    TEST_ASSERT_FALSE(sink.anyHas("no results yet"));
+}
+
+void test_E14_new_start_after_done_discards_old_table() {
+    runConstantSweep(25.0f);
+    TEST_ASSERT_EQUAL_UINT32(11, sw->rowCount());
+    sink.lines.clear();
+    sw->onCommand(startCmd(0.0f), g_now);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+    TEST_ASSERT_EQUAL_UINT32(0, sw->rowCount());
+    TEST_ASSERT_FALSE(sw->offsetKnown());
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    TEST_ASSERT_TRUE(sink.anyHas("no results yet"));
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TABLE"));
+    // new sweep records its first row, then results lists exactly that one row
+    tickN(120, 25.5f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(1, sw->rowCount());
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    size_t head = findPrefix("TABLE");
+    TEST_ASSERT_TRUE(head != kNpos);
+    TEST_ASSERT_TRUE(sink.lines[head].find("offset=0.50") != std::string::npos);
+    size_t next = 0;
+    expectTableAt(head, &next);
+    TEST_ASSERT_EQUAL_UINT32(head + 3, next);
+    TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TARGET"));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC1_ready_message_lists_commands_and_settle_values);
@@ -831,5 +1279,24 @@ int main(int, char**) {
     RUN_TEST(test_D4_AC8_zero_sample_periods_with_hot_held_value_do_not_cut_off);
     RUN_TEST(test_D4_AC9_zero_sample_periods_with_rail_held_counts_do_not_cut_off);
     RUN_TEST(test_D4_AC4_only_zero_sample_periods_still_time_out_at_2700_s);
+    RUN_TEST(test_AC5_table_printed_after_done_in_order_with_header_and_columns);
+    RUN_TEST(test_AC5_table_marks_unsettled_rows_no);
+    RUN_TEST(test_AC5_table_for_start_n_has_only_recorded_rows);
+    RUN_TEST(test_AC6_AC7_linear_process_interpolates_55_60_65_within_0_1_percent);
+    RUN_TEST(test_AC6_target_outside_table_is_not_reachable);
+    RUN_TEST(test_AC6_partly_reachable_only_65_beyond_table);
+    RUN_TEST(test_E5_fewer_than_two_settled_rows_is_not_reachable_single_row);
+    RUN_TEST(test_E5_only_one_settled_row_of_two_is_not_reachable);
+    RUN_TEST(test_E5_unsettled_rows_are_skipped_and_neighbours_paired);
+    RUN_TEST(test_E5_non_monotonic_table_uses_first_bracketing_pair);
+    RUN_TEST(test_AC6_target_equal_to_row_load_gives_that_rows_duty);
+    RUN_TEST(test_AC7_results_when_never_run_says_no_results_yet);
+    RUN_TEST(test_AC7_results_during_hold_says_no_results_yet);
+    RUN_TEST(test_AC7_results_after_done_reprints_table_and_targets);
+    RUN_TEST(test_AC7_results_mid_run_prints_table_without_targets_and_keeps_running);
+    RUN_TEST(test_AC7_results_after_stop_prints_table_without_targets);
+    RUN_TEST(test_AC7_results_after_cutoff_prints_table_without_targets);
+    RUN_TEST(test_E10_results_prints_full_table_after_output_was_discarded);
+    RUN_TEST(test_E14_new_start_after_done_discards_old_table);
     return UNITY_END();
 }

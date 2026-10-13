@@ -82,7 +82,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: no
   - Owner: agent
 
-- [ ] **T7: Add the result table, interpolation and `results`**
+- [x] **T7: Add the result table, interpolation and `results`**
   - Covers: AC5, AC6, AC7, AC16, E5, E10, E14
   - Depends on: T6
   - Files: `lib/sweep/src/sweep.cpp` (modify), `lib/sweep/include/sweep.h` (modify), `test/test_sweep/test_sweep.cpp` (modify)

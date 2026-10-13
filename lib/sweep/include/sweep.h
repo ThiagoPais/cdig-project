@@ -49,6 +49,8 @@ private:
     void emit(const char* text);
     void cutoff(const char* text);
     void handleStart(const Command& c, uint32_t nowMs);
+    void printTable(bool withTargets);
+    bool interpolateDuty(float targetC, float* percent) const;
     void beginStep(float percent, uint32_t nowMs);
     void closeStep(bool settled, uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient);
     void addRow(float percent, uint16_t counts, bool settled, const PeriodResult& load,

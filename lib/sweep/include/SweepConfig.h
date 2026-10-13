@@ -14,6 +14,7 @@ constexpr float    kStartToleranceC  = 3.0f;  // max |load - ambient| allowed to
 constexpr uint32_t kLogPeriodS       = 5;     // seconds between log lines while a sweep runs
 constexpr uint32_t kStartupBoundS    = 5;     // startup must finish within this time
 constexpr uint32_t kPwmFrequencyHz   = 1000;  // LEDC frequency (12-bit resolution)
+constexpr float    kTargetsC[3]      = {55.0f, 60.0f, 65.0f};  // temperatures whose duty is reported
 }  // namespace sweepcfg
 
 static_assert(sweepcfg::kSettleWindowS <= sweepcfg::kSettleBufferSize,
