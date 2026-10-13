@@ -3,7 +3,7 @@ Status: Draft
 # Tasks: Open-loop duty sweep for the thermal load
 
 Source: spec.md (Status: Approved (Thiago Cardoso, 2026-10-12)), plan.md (Status: Approved (Thiago Cardoso, 2026-10-13))
-Overrides: none
+Overrides: tasks.md executed while Status: Draft, at the user's explicit instruction in chat (2026-10-13); human tasks T10 and T11 are left pending and T12/T13 run without them (user: prioritize finishing)
 
 Legend: [ ] todo, [x] done. Only the executor ticks boxes, after validation.
 Metadata: `Parallel: yes|no` (safe to run alongside other tasks of the same wave), `Owner: agent|human` (human also when the only check is `manual`).
@@ -29,7 +29,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
 
 ## Milestone 1 (M1): Harness and building blocks
 
-- [ ] **T1: Create the native test environment**
+- [x] **T1: Create the native test environment**
   - Covers: none (unblocks every other task; adds the missing test layer)
   - Tests: none (infrastructure; a smoke test proves the harness)
   - Depends on: none
