@@ -38,7 +38,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: no
   - Owner: agent
 
-- [ ] **T2: Add duty conversion, cap clamp and tunables**
+- [x] **T2: Add duty conversion, cap clamp and tunables**
   - Covers: AC10 (cap enforcement), E8
   - Depends on: T1
   - Files: `lib/sweep/include/SweepConfig.h` (new), `lib/sweep/include/duty.h` (new), `lib/sweep/src/duty.cpp` (new), `test/test_duty/test_duty.cpp` (new)

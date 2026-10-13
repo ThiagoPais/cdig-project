@@ -4,6 +4,7 @@ Feature: Open-loop duty sweep for the thermal load
 
 ## Completed
 - T1 — added `[platformio] default_envs`, pinned `espressif32@7.1.3`, monitor DTR/RTS off, `[env:native]` (Unity 2.6.1 fetched on first run), and `test/test_smoke`; `pio test -e native` and `pio run` pass. Reviewer PASS.
+- T2 — `lib/sweep`: `SweepConfig.h` (D12 constants, `sweepcfg::` namespace, names chosen by the implementer because the plan gave only values), `duty.h/.cpp` (`clampDuty`, `percentToCounts`, `countsToPercent`); 11 tests, reviewer PASS.
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
@@ -16,7 +17,7 @@ Feature: Open-loop duty sweep for the thermal load
 
 ## Follow-ups
 (Out-of-scope ideas; do not act on them inside this feature.)
-- (none)
+- plan.md lists a 'step list' under duty.h; T2's Done when did not require it, so it is built where T6 needs it.
 
 ## Learnings
 (Gotchas future tasks should know.)
