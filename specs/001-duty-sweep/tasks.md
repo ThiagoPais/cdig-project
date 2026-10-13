@@ -90,7 +90,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: no
   - Owner: agent
 
-- [ ] **T8: Add the periodic log line and a full simulated sweep**
+- [x] **T8: Add the periodic log line and a full simulated sweep**
   - Covers: AC11, AC10 (every period), G1 end to end
   - Depends on: T7
   - Files: `lib/sweep/src/sweep.cpp` (modify), `test/test_sweep/test_sweep.cpp` (modify), `test/test_sweep/sim_process.h` (modify)

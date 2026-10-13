@@ -1213,6 +1213,308 @@ void test_E14_new_start_after_done_discards_old_table() {
     TEST_ASSERT_EQUAL_UINT32(kNpos, findPrefix("TARGET"));
 }
 
+// ---------------------------------------------------------------------------
+// T8: periodic LOG line (AC11), duty cap over a whole sweep (AC10), G1 end to end
+// ---------------------------------------------------------------------------
+
+struct LogRec {
+    unsigned t;
+    float duty;
+    unsigned counts;
+    float load, ambient, loadAdc, ambientAdc;
+};
+
+static bool parseLog(const std::string& l, LogRec* r) {
+    if (l.compare(0, 4, "LOG ") != 0) return false;
+    int n = sscanf(l.c_str(), "LOG t=%u duty=%f%% (%u) load=%f C ambient=%f C load_adc=%f ambient_adc=%f", &r->t,
+                   &r->duty, &r->counts, &r->load, &r->ambient, &r->loadAdc, &r->ambientAdc);
+    return n == 7;
+}
+
+static size_t countLogs() {
+    size_t n = 0;
+    for (const auto& l : sink.lines)
+        if (l.compare(0, 3, "LOG") == 0) n++;
+    return n;
+}
+
+// Returns the index-th LOG line (asserting it parses).
+static LogRec nthLog(size_t index) {
+    size_t seen = 0;
+    for (const auto& l : sink.lines) {
+        if (l.compare(0, 3, "LOG") != 0) continue;
+        if (seen++ == index) {
+            LogRec r{};
+            TEST_ASSERT_TRUE_MESSAGE(parseLog(l, &r), l.c_str());
+            return r;
+        }
+    }
+    TEST_FAIL_MESSAGE("LOG line index not present");
+    return LogRec{};
+}
+
+void test_AC11_no_log_before_5_seconds_and_first_log_at_t5() {
+    startAt(0.0f);
+    for (int i = 1; i <= 4; i++) {
+        tick(25.0f, 25.0f);
+        TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+    }
+    tick(25.0f, 25.0f);  // t = 5
+    TEST_ASSERT_EQUAL_UINT32(1, countLogs());
+    TEST_ASSERT_EQUAL_UINT32(5, nthLog(0).t);
+}
+
+void test_AC11_log_exactly_every_5_seconds_with_one_second_periods() {
+    startAt(0.0f);
+    for (int i = 1; i <= 14; i++) tick(25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(2, countLogs());
+    TEST_ASSERT_EQUAL_UINT32(5, nthLog(0).t);
+    TEST_ASSERT_EQUAL_UINT32(10, nthLog(1).t);
+    tick(25.0f, 25.0f);  // t = 15
+    TEST_ASSERT_EQUAL_UINT32(3, countLogs());
+    TEST_ASSERT_EQUAL_UINT32(15, nthLog(2).t);
+}
+
+void test_AC11_log_line_format_in_hold_uses_uncorrected_load() {
+    startAt(0.0f);
+    for (int i = 1; i <= 5; i++) tick(25.3f, 25.0f, 941.2f, 923.0f);
+    TEST_ASSERT_EQUAL_UINT32(1, countLogs());
+    size_t idx = findPrefix("LOG");
+    TEST_ASSERT_TRUE(idx != kNpos);
+    TEST_ASSERT_EQUAL_STRING("LOG t=5 duty=0.00% (0) load=25.3 C ambient=25.0 C load_adc=941.2 ambient_adc=923.0",
+                             sink.lines[idx].c_str());
+}
+
+void test_AC11_log_reports_raw_counts_and_both_temperatures() {
+    startAt(0.0f);
+    for (int i = 1; i <= 5; i++) tick(26.4f, 24.8f, 1000.5f, 870.3f);
+    size_t idx = findPrefix("LOG");
+    TEST_ASSERT_TRUE(idx != kNpos);
+    TEST_ASSERT_EQUAL_STRING("LOG t=5 duty=0.00% (0) load=26.4 C ambient=24.8 C load_adc=1000.5 ambient_adc=870.3",
+                             sink.lines[idx].c_str());
+}
+
+void test_AC11_log_t_is_whole_seconds_since_start_with_irregular_periods() {
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sw->onCommand(startCmd(0.0f), 1000);
+    sink.lines.clear();
+    // 1.2 s periods: 2.2 3.4 4.6 5.8 -> first multiple of 5 reached at +4.8? check exact offsets below
+    const uint32_t offs[] = {1200, 2400, 3600, 4800, 4999, 5000, 6200, 9600, 9999, 10000, 10800, 14999, 15000};
+    const unsigned expectLogT[] = {5, 10, 15};
+    const uint32_t logAt[] = {5000, 10000, 15000};
+    size_t logsSeen = 0;
+    for (size_t i = 0; i < sizeof offs / sizeof offs[0]; i++) {
+        sw->onPeriod(1000 + offs[i], pr(25.0f), pr(25.0f));
+        bool shouldLog = false;
+        for (size_t k = 0; k < 3; k++)
+            if (offs[i] == logAt[k]) shouldLog = true;
+        if (shouldLog) {
+            logsSeen++;
+            TEST_ASSERT_EQUAL_UINT32(logsSeen, countLogs());
+            TEST_ASSERT_EQUAL_UINT32(expectLogT[logsSeen - 1], nthLog(logsSeen - 1).t);
+        } else {
+            TEST_ASSERT_EQUAL_UINT32(logsSeen, countLogs());
+        }
+    }
+}
+
+void test_AC11_log_fires_in_period_that_first_reaches_the_multiple_not_later() {
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sw->onCommand(startCmd(0.0f), 1000);
+    sink.lines.clear();
+    // 1.2 s periods: whole seconds 1,2,3,4,6(t=6 first >= 5),7,8,9,10(at 10.8),12,13,14,15(15.6)
+    uint32_t now = 1000;
+    unsigned lastT = 0;
+    size_t logs = 0;
+    for (int i = 1; i <= 13; i++) {
+        now += 1200;
+        sw->onPeriod(now, pr(25.0f), pr(25.0f));
+        unsigned whole = (unsigned)((now - 1000) / 1000);
+        size_t want = whole / 5;  // multiples of 5 reached so far
+        if (want > logs) logs = 1 + logs;  // at most one line per period
+        TEST_ASSERT_EQUAL_UINT32(logs, countLogs());
+        if (countLogs() > 0) lastT = nthLog(countLogs() - 1).t;
+    }
+    TEST_ASSERT_EQUAL_UINT32(3, countLogs());
+    TEST_ASSERT_EQUAL_UINT32(15, lastT);
+}
+
+void test_AC11_log_duty_is_the_one_applied_after_a_step_change_in_the_same_call() {
+    startAt(0.0f);
+    tickN(115, 25.0f, 25.0f);  // t = 115
+    TEST_ASSERT_EQUAL_UINT32(23, countLogs());
+    LogRec before = nthLog(22);
+    TEST_ASSERT_EQUAL_UINT32(115, before.t);
+    TEST_ASSERT_EQUAL_UINT32(0, before.counts);
+    tickN(5, 25.0f, 25.0f);  // t = 120: hold settles in this call, step to 2.5 % applies
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Running);
+    TEST_ASSERT_EQUAL_UINT16(102, sw->dutyCounts());
+    LogRec at120 = nthLog(23);
+    TEST_ASSERT_EQUAL_UINT32(120, at120.t);
+    TEST_ASSERT_EQUAL_UINT32(102, at120.counts);
+    size_t idx = 0;
+    for (size_t i = 0; i < sink.lines.size(); i++)
+        if (sink.lines[i].compare(0, 10, "LOG t=120 ") == 0) idx = i + 1;
+    TEST_ASSERT_TRUE(idx != 0);
+    TEST_ASSERT_TRUE(sink.lines[idx - 1].find("duty=2.49% (102)") != std::string::npos);
+}
+
+void test_AC11_log_load_is_offset_corrected_once_offset_is_known() {
+    startAt(0.0f);
+    tickN(115, 25.5f, 25.0f);
+    TEST_ASSERT_FALSE(sw->offsetKnown());
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.5f, nthLog(22).load);  // t = 115, uncorrected
+    tickN(5, 25.5f, 25.0f);                                    // t = 120, offset 0.5 known
+    TEST_ASSERT_TRUE(sw->offsetKnown());
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.0f, nthLog(23).load);  // t = 120, corrected
+    tickN(5, 25.5f, 25.0f);                                    // t = 125
+    LogRec r = nthLog(24);
+    TEST_ASSERT_EQUAL_UINT32(125, r.t);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.0f, r.load);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 25.0f, r.ambient);
+}
+
+void test_AC11_no_log_in_idle_even_when_periods_continue() {
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sink.lines.clear();
+    g_now = 1000;
+    tickN(30, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+}
+
+void test_AC11_no_log_in_the_call_that_ends_the_sweep_nor_afterwards() {
+    startAt(0.0f);
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 5000) tick(25.0f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    unsigned tFinal = (unsigned)((g_now - 1000) / 1000);
+    // one line per multiple of 5 strictly before the ending call
+    TEST_ASSERT_EQUAL_UINT32((tFinal - 1) / 5, countLogs());
+    for (size_t i = 0; i < countLogs(); i++) {
+        LogRec r = nthLog(i);
+        TEST_ASSERT_EQUAL_UINT32((i + 1) * 5, r.t);
+        TEST_ASSERT_TRUE(r.t < tFinal);
+    }
+    size_t done = findPrefix("SWEEP DONE");
+    TEST_ASSERT_TRUE(done != kNpos);
+    for (size_t i = done; i < sink.lines.size(); i++) TEST_ASSERT_TRUE(sink.lines[i].compare(0, 3, "LOG") != 0);
+    size_t before = sink.lines.size();
+    tickN(20, 25.0f, 25.0f);
+    for (size_t i = before; i < sink.lines.size(); i++) TEST_ASSERT_TRUE(sink.lines[i].compare(0, 3, "LOG") != 0);
+}
+
+void test_AC11_no_log_in_cutoff_call_nor_afterwards() {
+    startAt(0.0f);
+    tickN(4, 25.0f, 25.0f);
+    tick(80.0f, 25.0f, 1800.0f, 923.0f);  // t = 5: cutoff instead of a log
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Cutoff);
+    TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+    tickN(20, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+}
+
+void test_AC11_stop_ends_logging_and_new_start_restarts_the_5_second_count() {
+    startAt(0.0f);
+    tickN(7, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(1, countLogs());
+    sw->onCommand(cmd(CmdType::Stop), g_now);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    sink.lines.clear();
+    tickN(12, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+    // restart at the current time: count begins from this start
+    sw->onCommand(startCmd(0.0f), g_now);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+    sink.lines.clear();
+    tickN(4, 25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(0, countLogs());
+    tick(25.0f, 25.0f);
+    TEST_ASSERT_EQUAL_UINT32(1, countLogs());
+    TEST_ASSERT_EQUAL_UINT32(5, nthLog(0).t);
+}
+
+void test_AC11_log_percent_text_matches_counts() {
+    startAt(0.0f);
+    tickN(300, 25.0f, 25.0f);  // crosses several steps
+    TEST_ASSERT_EQUAL_UINT32(60, countLogs());
+    for (size_t i = 0; i < sink.lines.size(); i++) {
+        LogRec r{};
+        if (!parseLog(sink.lines[i], &r)) continue;
+        char buf[24];
+        snprintf(buf, sizeof buf, "duty=%.2f%% (%u)", (double)countsToPercent((uint16_t)r.counts), r.counts);
+        TEST_ASSERT_TRUE_MESSAGE(sink.lines[i].find(buf) != std::string::npos, sink.lines[i].c_str());
+    }
+}
+
+// Runs a complete simulated sweep checking the cap after every onPeriod and onCommand.
+static void runCappedSweep(float startPct) {
+    FirstOrderProcess proc(25.0f, 200.0f, 10.0f);
+    sw->onPeriod(1000, pr(proc.tempC), pr(25.0f));
+    TEST_ASSERT_TRUE(sw->dutyCounts() <= kCapCounts);
+    sw->onCommand(startCmd(startPct), 1000);
+    TEST_ASSERT_TRUE(sw->dutyCounts() <= kCapCounts);
+    g_now = 1000;
+    sink.lines.clear();
+    int ticks = 0;
+    while (sw->state() != SweepState::Done && sw->state() != SweepState::Cutoff && ticks < 40000) {
+        proc.step(sw->dutyCounts());
+        tick(proc.tempC, 25.0f);
+        TEST_ASSERT_TRUE(sw->dutyCounts() <= 1023);
+        if (ticks % 97 == 0) {
+            sw->onCommand(cmd(CmdType::Results), g_now);
+            TEST_ASSERT_TRUE(sw->dutyCounts() <= 1023);
+        }
+        ticks++;
+    }
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    sw->onCommand(cmd(CmdType::Results), g_now);
+    TEST_ASSERT_TRUE(sw->dutyCounts() <= 1023);
+    TEST_ASSERT_TRUE(countLogs() > 0);
+    unsigned maxSeen = 0;
+    for (const auto& l : sink.lines) {
+        LogRec r{};
+        if (parseLog(l, &r)) {
+            TEST_ASSERT_TRUE(r.counts <= 1023);
+            if (r.counts > maxSeen) maxSeen = r.counts;
+        }
+    }
+    for (size_t i = 0; i < sw->rowCount(); i++) TEST_ASSERT_TRUE(sw->row(i).dutyCounts <= 1023);
+    TEST_ASSERT_EQUAL_UINT32(1023, maxSeen);  // the last step is applied as exactly the cap
+}
+
+void test_AC10_AC11_start_never_exceeds_1023_counts_in_period_log_or_table() { runCappedSweep(0.0f); }
+void test_AC10_AC11_start_10_never_exceeds_1023_counts_in_period_log_or_table() { runCappedSweep(10.0f); }
+void test_AC10_AC11_start_25_never_exceeds_1023_counts_in_period_log_or_table() { runCappedSweep(25.0f); }
+
+void test_G1_end_to_end_simulated_sweep_reports_three_duties_within_half_percent() {
+    // T = 22 + 190 * d: 55, 60, 65 C at 17.37, 20.00, 22.63 %; maximum 22 + 47.5 = 69.5 C.
+    FirstOrderProcess proc(22.0f, 190.0f, 20.0f);
+    const float bias = 0.4f;
+    sw->onPeriod(1000, pr(proc.tempC + bias), pr(22.0f));
+    sw->onCommand(startCmd(0.0f), 1000);
+    g_now = 1000;
+    sink.lines.clear();
+    int ticks = 0;
+    while (sw->state() != SweepState::Done && sw->state() != SweepState::Cutoff && ticks < 40000) {
+        proc.step(sw->dutyCounts());
+        tick(proc.tempC + bias, 22.0f);
+        TEST_ASSERT_TRUE(sw->dutyCounts() <= 1023);
+        ticks++;
+    }
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    TEST_ASSERT_EQUAL_UINT32((unsigned)(ticks - 1) / 5, countLogs());
+    size_t head = findPrefix("TABLE", findPrefix("SWEEP DONE"));
+    size_t next = 0;
+    expectTableAt(head, &next);
+    for (int k = 0; k < 3; k++) {
+        float d = 0.0f;
+        unsigned c = 0;
+        TEST_ASSERT_TRUE(parseTarget(next + k, kTargets[k], &d, &c));
+        float want = (kTargets[k] - 22.0f) / 190.0f * 100.0f;
+        TEST_ASSERT_FLOAT_WITHIN(0.5f, want, d);
+    }
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC1_ready_message_lists_commands_and_settle_values);
@@ -1298,5 +1600,22 @@ int main(int, char**) {
     RUN_TEST(test_AC7_results_after_cutoff_prints_table_without_targets);
     RUN_TEST(test_E10_results_prints_full_table_after_output_was_discarded);
     RUN_TEST(test_E14_new_start_after_done_discards_old_table);
+    RUN_TEST(test_AC11_no_log_before_5_seconds_and_first_log_at_t5);
+    RUN_TEST(test_AC11_log_exactly_every_5_seconds_with_one_second_periods);
+    RUN_TEST(test_AC11_log_line_format_in_hold_uses_uncorrected_load);
+    RUN_TEST(test_AC11_log_reports_raw_counts_and_both_temperatures);
+    RUN_TEST(test_AC11_log_t_is_whole_seconds_since_start_with_irregular_periods);
+    RUN_TEST(test_AC11_log_fires_in_period_that_first_reaches_the_multiple_not_later);
+    RUN_TEST(test_AC11_log_duty_is_the_one_applied_after_a_step_change_in_the_same_call);
+    RUN_TEST(test_AC11_log_load_is_offset_corrected_once_offset_is_known);
+    RUN_TEST(test_AC11_no_log_in_idle_even_when_periods_continue);
+    RUN_TEST(test_AC11_no_log_in_the_call_that_ends_the_sweep_nor_afterwards);
+    RUN_TEST(test_AC11_no_log_in_cutoff_call_nor_afterwards);
+    RUN_TEST(test_AC11_stop_ends_logging_and_new_start_restarts_the_5_second_count);
+    RUN_TEST(test_AC11_log_percent_text_matches_counts);
+    RUN_TEST(test_AC10_AC11_start_never_exceeds_1023_counts_in_period_log_or_table);
+    RUN_TEST(test_AC10_AC11_start_10_never_exceeds_1023_counts_in_period_log_or_table);
+    RUN_TEST(test_AC10_AC11_start_25_never_exceeds_1023_counts_in_period_log_or_table);
+    RUN_TEST(test_G1_end_to_end_simulated_sweep_reports_three_duties_within_half_percent);
     return UNITY_END();
 }

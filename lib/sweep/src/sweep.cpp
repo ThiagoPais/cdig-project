@@ -95,6 +95,26 @@ void Sweep::onPeriod(uint32_t nowMs, const PeriodResult& load, const PeriodResul
     const bool timedOut =
         static_cast<uint32_t>(nowMs - stepStartMs_) >= sweepcfg::kStepTimeoutS * 1000u;
     if (settled || timedOut) closeStep(settled, nowMs, load, ambient);
+
+    maybeLog(nowMs, load, ambient);
+}
+
+// One log line each time the whole seconds since `start` reach a new multiple of kLogPeriodS,
+// printed in the period that first reaches it. Only while a sweep is in progress.
+void Sweep::maybeLog(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient) {
+    if (state_ != SweepState::HoldZero && state_ != SweepState::Running) return;
+    const uint32_t seconds = static_cast<uint32_t>(nowMs - startMs_) / 1000u;
+    const uint32_t bucket = seconds / sweepcfg::kLogPeriodS;
+    if (bucket <= lastLogBucket_) return;
+    lastLogBucket_ = bucket;
+    const float loadC = offsetKnown_ ? load.tempC - offsetC_ : load.tempC;
+    char buf[128];
+    snprintf(buf, sizeof buf,
+             "LOG t=%u duty=%.2f%% (%u) load=%.1f C ambient=%.1f C load_adc=%.1f ambient_adc=%.1f",
+             static_cast<unsigned>(seconds), static_cast<double>(countsToPercent(duty_)),
+             static_cast<unsigned>(duty_), static_cast<double>(loadC), static_cast<double>(ambient.tempC),
+             static_cast<double>(load.meanCount), static_cast<double>(ambient.meanCount));
+    emit(buf);
 }
 
 void Sweep::addRow(float percent, uint16_t counts, bool settled, const PeriodResult& load,
@@ -189,6 +209,8 @@ void Sweep::handleStart(const Command& c, uint32_t nowMs) {
     offsetC_ = 0.0f;
     histCount_ = 0;
     stepStartMs_ = nowMs;
+    startMs_ = nowMs;
+    lastLogBucket_ = 0;
     char buf[48];
     snprintf(buf, sizeof buf, "START from %.1f %%", static_cast<double>(startPercent_));
     emit(buf);

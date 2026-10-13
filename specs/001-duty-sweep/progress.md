@@ -10,6 +10,7 @@ Feature: Open-loop duty sweep for the thermal load
 - T5 — `lib/sweep` `sweep.h/.cpp`: `Sweep` shell (state machine Idle/HoldZero/Running/Done/Cutoff, ready message, start/stop/temp handling, cutoff on uncorrected load >= 80 or rail counts, duty 0 latched); 34 tests, reviewer PASS. Output formats were not defined by plan/tasks, so the executor fixed them in the test-writer brief (READY, START from N %, REFUSED: ..., STOPPED, NOTHING RUNNING, CUTOFF ..., TEMP load=.. count=.. n=.. ambient=..); see Decision.
 - T6 — `Sweep`: 0 % hold, steps `N + k*2.5` (<= 25, last not forced), settle = max-min over the last 120 per-second entries <= 0.5, 45 min timeout, offset = mean(load - ambient) over the last window, rows (`rowCount/row/offsetKnown/offsetC`), cutoff on uncorrected values; history ring tied to `sweepcfg::kSettleBufferSize`. Review round 1 FAIL (major): zero-sample periods fed the settle history/offset, contrary to plan D4; test-writer added 6 tests (4 failed first), fix applied, round 2 PASS. 111 tests total.
 - T7 — `Sweep::printTable/interpolateDuty`: `TABLE offset=..`, column line, one row per step (duty % = counts/4095), `TARGET 55/60/65` lines (first bracketing pair of settled rows, ends included, lower duty on equal loads), printed after `SWEEP DONE` and on `results` (targets only in Done); `kTargetsC` added to SweepConfig.h. One test expectation corrected by the test-writer (`2.50` -> `2.49`: 102 counts is 2.49 %, spec E8); reviewer PASS, correction judged legitimate. 130 tests total.
+- T8 — `Sweep::maybeLog`: `LOG t=<s> duty=<pct>% (<counts>) load=.. C ambient=.. C load_adc=.. ambient_adc=..` printed in the period that first reaches a multiple of 5 s since `start`, only while HoldZero/Running, load corrected once the offset is known; 17 tests incl. cap on every period for `start`, `start 10`, `start 25` and an end-to-end simulated sweep within 0.5 %. A truncated expectation (`10` instead of `102` counts) was corrected by the test-writer. Reviewer PASS. 147 tests total.
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
@@ -26,6 +27,7 @@ Feature: Open-loop duty sweep for the thermal load
 (Out-of-scope ideas; do not act on them inside this feature.)
 - plan.md lists a 'step list' under duty.h; T2's Done when did not require it, so it is built where T6 needs it.
 - Parser accepts `start 0x10`, `start +5`, `start 1e1` (strtof forms) and treats a line of 32+ characters as Unknown even if the tail is padding; both are harmless because N is bounded 0..25 and the cap holds downstream. Tighten only if wanted.
+- Log lines on a zero-sample period (stalled loop) show the held values without marking them stale (reviewer minor, consistent with plan D4). No test starts near the uint32 `millis()` wrap (arithmetic is wrap-safe by inspection).
 - `StepRow::dutyPercent` holds the nominal step (25.0) while `dutyCounts` is 1023 (24.98 %). T6 tests pin the nominal value; the printed table (T7) shows `countsToPercent(dutyCounts)` as E8 requires.
 
 ## Learnings

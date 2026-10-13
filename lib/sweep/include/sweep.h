@@ -50,6 +50,7 @@ private:
     void cutoff(const char* text);
     void handleStart(const Command& c, uint32_t nowMs);
     void printTable(bool withTargets);
+    void maybeLog(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient);
     bool interpolateDuty(float targetC, float* percent) const;
     void beginStep(float percent, uint32_t nowMs);
     void closeStep(bool settled, uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient);
@@ -73,6 +74,8 @@ private:
     float ambHist_[kHistory];
     size_t histCount_ = 0;   // entries since the step began (not capped)
     uint32_t stepStartMs_ = 0;
+    uint32_t startMs_ = 0;       // time of the accepted start command
+    uint32_t lastLogBucket_ = 0; // last multiple of kLogPeriodS already logged
     float stepPercent_ = 0.0f;
 
     StepRow rows_[kMaxRows];
