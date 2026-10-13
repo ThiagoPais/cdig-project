@@ -7,12 +7,15 @@ Feature: Open-loop duty sweep for the thermal load
 - T2 — `lib/sweep`: `SweepConfig.h` (D12 constants, `sweepcfg::` namespace, names chosen by the implementer because the plan gave only values), `duty.h/.cpp` (`clampDuty`, `percentToCounts`, `countsToPercent`); 11 tests, reviewer PASS.
 - T3 — `lib/measure`: `countToCelsius`, `WindowAverager` (reset() holds the last mean; empty period returns samples = 0), `PeriodScheduler` (origin = first call, 2 ms spacing in the first 800 ms of each 1000 ms, one `periodEnded` per period); 14 tests, reviewer PASS.
 - T4 — `lib/sweep` `commands.h/.cpp`: `LineBuffer::push` parses `start [N]`, `stop`, `results`, `temp`; 32-byte buffer, overlong line -> Unknown, empty line ignored; 21 tests, reviewer PASS (2 minors accepted, see Follow-ups).
+- T5 — `lib/sweep` `sweep.h/.cpp`: `Sweep` shell (state machine Idle/HoldZero/Running/Done/Cutoff, ready message, start/stop/temp handling, cutoff on uncorrected load >= 80 or rail counts, duty 0 latched); 34 tests, reviewer PASS. Output formats were not defined by plan/tasks, so the executor fixed them in the test-writer brief (READY, START from N %, REFUSED: ..., STOPPED, NOTHING RUNNING, CUTOFF ..., TEMP load=.. count=.. n=.. ambient=..); see Decision.
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
 - Run base: `Base: HEAD e59a5b9` on branch `feat/duty-sweep` (created from master; working tree clean; untracked PILOT-LOG.md excluded locally via .git/info/exclude).
 - Override (2026-10-13): tasks.md is Draft; the user explicitly ordered the whole file to be executed, to commit when pertinent and not to stop at milestones unless blocked.
 - T1..T9, T12, T13 are agent tasks and run in this order sequentially (no parallel worktrees: wave 2 is cheap and worktrees add cost). T10/T11 need the physical board and cannot be done by the agent: they stay pending, and T12/T13 run without waiting for them (dependency waived by the user's instruction to finish).
+
+- Output text formats: plan.md says 'fixed formats chosen in the tasks' but tasks.md did not choose them. The executor chose them while briefing the T5 test-writer (substrings asserted by tests/test_sweep): `READY`, `START from <N> %`, `REFUSED: ...` (reasons: reset required, already running, no measurement, ambient, usage), `STOPPED`, `NOTHING RUNNING`, `CUTOFF load ...`, `CUTOFF <sensor> sensor reading invalid`, `UNKNOWN COMMAND`, `TEMP load=<t> C count=<c> n=<n> ambient=...`. Spec is silent on wording, so no deviation from it.
 
 ## Blocked
 - (none) Format: Blocked: T# — <what was tried, observed failure, question for the human>

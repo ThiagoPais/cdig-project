@@ -66,7 +66,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
 
 ## Milestone 2 (M2): Sweep logic (host-tested)
 
-- [ ] **T5: Add the sweep shell and safety behavior**
+- [x] **T5: Add the sweep shell and safety behavior**
   - Covers: AC1, AC2 (start tolerance), AC8, AC9, AC13, AC17, E1, E2, E3, E4, E11, E13
   - Depends on: T2, T3, T4
   - Files: `lib/sweep/include/sweep.h` (new), `lib/sweep/src/sweep.cpp` (new), `test/test_sweep/test_sweep.cpp` (new)
