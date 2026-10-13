@@ -6,6 +6,7 @@ Feature: Open-loop duty sweep for the thermal load
 - T1 — added `[platformio] default_envs`, pinned `espressif32@7.1.3`, monitor DTR/RTS off, `[env:native]` (Unity 2.6.1 fetched on first run), and `test/test_smoke`; `pio test -e native` and `pio run` pass. Reviewer PASS.
 - T2 — `lib/sweep`: `SweepConfig.h` (D12 constants, `sweepcfg::` namespace, names chosen by the implementer because the plan gave only values), `duty.h/.cpp` (`clampDuty`, `percentToCounts`, `countsToPercent`); 11 tests, reviewer PASS.
 - T3 — `lib/measure`: `countToCelsius`, `WindowAverager` (reset() holds the last mean; empty period returns samples = 0), `PeriodScheduler` (origin = first call, 2 ms spacing in the first 800 ms of each 1000 ms, one `periodEnded` per period); 14 tests, reviewer PASS.
+- T4 — `lib/sweep` `commands.h/.cpp`: `LineBuffer::push` parses `start [N]`, `stop`, `results`, `temp`; 32-byte buffer, overlong line -> Unknown, empty line ignored; 21 tests, reviewer PASS (2 minors accepted, see Follow-ups).
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
@@ -19,6 +20,7 @@ Feature: Open-loop duty sweep for the thermal load
 ## Follow-ups
 (Out-of-scope ideas; do not act on them inside this feature.)
 - plan.md lists a 'step list' under duty.h; T2's Done when did not require it, so it is built where T6 needs it.
+- Parser accepts `start 0x10`, `start +5`, `start 1e1` (strtof forms) and treats a line of 32+ characters as Unknown even if the tail is padding; both are harmless because N is bounded 0..25 and the cap holds downstream. Tighten only if wanted.
 
 ## Learnings
 (Gotchas future tasks should know.)

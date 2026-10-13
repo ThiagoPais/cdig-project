@@ -54,7 +54,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T4: Add the serial command parser**
+- [x] **T4: Add the serial command parser**
   - Covers: AC2 (command forms), E4, E12, E13
   - Depends on: T1
   - Files: `lib/sweep/include/commands.h` (new), `lib/sweep/src/commands.cpp` (new), `test/test_commands/test_commands.cpp` (new)
