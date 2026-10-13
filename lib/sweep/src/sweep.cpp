@@ -42,7 +42,7 @@ void Sweep::cutoff(const char* text) {
     emit(text);
 }
 
-void Sweep::onPeriod(uint32_t, const PeriodResult& load, const PeriodResult& ambient) {
+void Sweep::onPeriod(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient) {
     load_ = load;
     ambient_ = ambient;
     haveMeasurement_ = true;
@@ -65,10 +65,100 @@ void Sweep::onPeriod(uint32_t, const PeriodResult& load, const PeriodResult& amb
         snprintf(buf, sizeof buf, "CUTOFF load temperature %.1f C >= %.1f C",
                  static_cast<double>(load.tempC), static_cast<double>(sweepcfg::kCutoffC));
         cutoff(buf);
+        return;
     }
+
+    if (state_ != SweepState::HoldZero && state_ != SweepState::Running) return;
+
+    // A period with no samples carries held (stale) values: it must not feed the settle
+    // history or the offset (plan D4). The wall-clock timeout still applies.
+    const bool fresh = load.samples > 0 && ambient.samples > 0;
+    if (fresh) {
+        const size_t slot = histCount_ % kHistory;
+        loadHist_[slot] = load.tempC;
+        ambHist_[slot] = ambient.tempC;
+        ++histCount_;
+    }
+
+    const size_t window = sweepcfg::kSettleWindowS;
+    bool settled = false;
+    if (fresh && histCount_ >= window) {
+        float lo = loadHist_[(histCount_ - 1) % kHistory];
+        float hi = lo;
+        for (size_t k = 0; k < window; ++k) {
+            const float v = loadHist_[(histCount_ - 1 - k) % kHistory];
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+        }
+        settled = (hi - lo) <= sweepcfg::kSettleThresholdC;
+    }
+    const bool timedOut =
+        static_cast<uint32_t>(nowMs - stepStartMs_) >= sweepcfg::kStepTimeoutS * 1000u;
+    if (settled || timedOut) closeStep(settled, nowMs, load, ambient);
 }
 
-void Sweep::handleStart(const Command& c) {
+void Sweep::addRow(float percent, uint16_t counts, bool settled, const PeriodResult& load,
+                   const PeriodResult& ambient) {
+    if (rowCount_ >= kMaxRows) return;
+    StepRow& r = rows_[rowCount_++];
+    r.dutyPercent = percent;
+    r.dutyCounts = counts;
+    r.loadC = load.tempC - offsetC_;
+    r.ambientC = ambient.tempC;
+    r.loadCount = load.meanCount;
+    r.ambientCount = ambient.meanCount;
+    r.settled = settled;
+}
+
+void Sweep::beginStep(float percent, uint32_t nowMs) {
+    state_ = SweepState::Running;
+    stepPercent_ = percent;
+    duty_ = percentToCounts(percent);
+    histCount_ = 0;
+    stepStartMs_ = nowMs;
+    char buf[64];
+    snprintf(buf, sizeof buf, "STEP %.1f %% (%u counts)", static_cast<double>(percent),
+             static_cast<unsigned>(duty_));
+    emit(buf);
+}
+
+void Sweep::closeStep(bool settled, uint32_t nowMs, const PeriodResult& load,
+                      const PeriodResult& ambient) {
+    float next;
+    if (state_ == SweepState::HoldZero) {
+        // The hold ends: the offset is the mean (load - ambient) over the last window.
+        const size_t n = histCount_ < sweepcfg::kSettleWindowS ? histCount_ : sweepcfg::kSettleWindowS;
+        double sum = 0.0;
+        for (size_t k = 0; k < n; ++k) {
+            const size_t idx = (histCount_ - 1 - k) % kHistory;
+            sum += static_cast<double>(loadHist_[idx]) - static_cast<double>(ambHist_[idx]);
+        }
+        offsetC_ = n > 0 ? static_cast<float>(sum / n) : 0.0f;
+        offsetKnown_ = true;
+        char buf[64];
+        snprintf(buf, sizeof buf, "OFFSET %.2f C (load - ambient at 0 %%)", static_cast<double>(offsetC_));
+        emit(buf);
+        if (startPercent_ <= 0.0f) {
+            addRow(0.0f, 0, settled, load, ambient);
+            next = sweepcfg::kStepPercent;
+        } else {
+            next = startPercent_;
+        }
+    } else {
+        addRow(stepPercent_, duty_, settled, load, ambient);
+        next = stepPercent_ + sweepcfg::kStepPercent;
+    }
+
+    if (next > sweepcfg::kCapPercent + 1e-4f) {
+        state_ = SweepState::Done;
+        duty_ = 0;
+        emit("SWEEP DONE");
+        return;
+    }
+    beginStep(next, nowMs);
+}
+
+void Sweep::handleStart(const Command& c, uint32_t nowMs) {
     if (state_ == SweepState::Cutoff) {
         emit("REFUSED: reset required after cutoff");
         return;
@@ -93,18 +183,23 @@ void Sweep::handleStart(const Command& c) {
     startPercent_ = c.startPercent;
     state_ = SweepState::HoldZero;
     duty_ = 0;
+    rowCount_ = 0;
+    offsetKnown_ = false;
+    offsetC_ = 0.0f;
+    histCount_ = 0;
+    stepStartMs_ = nowMs;
     char buf[48];
     snprintf(buf, sizeof buf, "START from %.1f %%", static_cast<double>(startPercent_));
     emit(buf);
 }
 
-void Sweep::onCommand(const Command& c, uint32_t) {
+void Sweep::onCommand(const Command& c, uint32_t nowMs) {
     char buf[128];
     switch (c.type) {
         case CmdType::None:
             break;
         case CmdType::Start:
-            handleStart(c);
+            handleStart(c, nowMs);
             break;
         case CmdType::BadStart:
             emit("REFUSED: usage: start | start N (N from 0 to 25)");

@@ -74,7 +74,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: no
   - Owner: agent
 
-- [ ] **T6: Add the 0 % hold, steps, settle detection and offset**
+- [x] **T6: Add the 0 % hold, steps, settle detection and offset**
   - Covers: AC2 (steps), AC3, AC4, AC15, E6, E7, E8
   - Depends on: T5
   - Files: `lib/sweep/src/sweep.cpp` (modify), `lib/sweep/include/sweep.h` (modify), `test/test_sweep/test_sweep.cpp` (modify), `test/test_sweep/sim_process.h` (new)
