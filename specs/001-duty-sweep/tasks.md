@@ -102,7 +102,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
 
 ## Milestone 3 (M3): Firmware and hardware checks
 
-- [ ] **T9: Wire the firmware (LEDC, ADC, Serial, loop)**
+- [x] **T9: Wire the firmware (LEDC, ADC, Serial, loop)**
   - Covers: AC1 (boot), AC10 (pin), AC14, AC17, E12 (on hardware)
   - Tests: none (hardware glue; verified by T10 and T11 and by the host tests of T2 to T8)
   - Depends on: T8
