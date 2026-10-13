@@ -5,6 +5,7 @@ Feature: Open-loop duty sweep for the thermal load
 ## Completed
 - T1 — added `[platformio] default_envs`, pinned `espressif32@7.1.3`, monitor DTR/RTS off, `[env:native]` (Unity 2.6.1 fetched on first run), and `test/test_smoke`; `pio test -e native` and `pio run` pass. Reviewer PASS.
 - T2 — `lib/sweep`: `SweepConfig.h` (D12 constants, `sweepcfg::` namespace, names chosen by the implementer because the plan gave only values), `duty.h/.cpp` (`clampDuty`, `percentToCounts`, `countsToPercent`); 11 tests, reviewer PASS.
+- T3 — `lib/measure`: `countToCelsius`, `WindowAverager` (reset() holds the last mean; empty period returns samples = 0), `PeriodScheduler` (origin = first call, 2 ms spacing in the first 800 ms of each 1000 ms, one `periodEnded` per period); 14 tests, reviewer PASS.
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
@@ -21,5 +22,6 @@ Feature: Open-loop duty sweep for the thermal load
 
 ## Learnings
 (Gotchas future tasks should know.)
+- Do not run `pio test -e native` while another task's failing tests exist in the tree: a missing header aborts the whole run. Reviews therefore run strictly after the implementation and before the next task's test-writer.
 - `pio` is not on PATH; `export PATH="$HOME/.platformio/penv/bin:$PATH"` before `pio ...`.
 - Unity is downloaded by `pio test -e native` on first use (network needed once); it worked here.

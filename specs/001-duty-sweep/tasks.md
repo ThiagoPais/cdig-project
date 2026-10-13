@@ -46,7 +46,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T3: Add the measurement unit (conversion, window mean, period scheduler)**
+- [x] **T3: Add the measurement unit (conversion, window mean, period scheduler)**
   - Covers: AC12, AC14
   - Depends on: T1
   - Files: `lib/measure/include/measure.h` (new), `lib/measure/src/measure.cpp` (new), `test/test_measure/test_measure.cpp` (new)
