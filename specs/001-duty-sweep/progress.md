@@ -12,6 +12,8 @@ Feature: Open-loop duty sweep for the thermal load
 - T7 — `Sweep::printTable/interpolateDuty`: `TABLE offset=..`, column line, one row per step (duty % = counts/4095), `TARGET 55/60/65` lines (first bracketing pair of settled rows, ends included, lower duty on equal loads), printed after `SWEEP DONE` and on `results` (targets only in Done); `kTargetsC` added to SweepConfig.h. One test expectation corrected by the test-writer (`2.50` -> `2.49`: 102 counts is 2.49 %, spec E8); reviewer PASS, correction judged legitimate. 130 tests total.
 - T8 — `Sweep::maybeLog`: `LOG t=<s> duty=<pct>% (<counts>) load=.. C ambient=.. C load_adc=.. ambient_adc=..` printed in the period that first reaches a multiple of 5 s since `start`, only while HoldZero/Running, load corrected once the offset is known; 17 tests incl. cap on every period for `start`, `start 10`, `start 25` and an end-to-end simulated sweep within 0.5 %. A truncated expectation (`10` instead of `102` counts) was corrected by the test-writer. Reviewer PASS. 147 tests total.
 - T9 — `src/main.cpp`: D14 LOW first, 115200 baud, 12-bit ADC at 0 dB on GPIO33/GPIO34, LEDC ch0 1 kHz 12-bit on GPIO14 through the single `writeDutyCounts()` (clampDuty), cooperative sampling/period flow into `Sweep`; `pio run` builds (RAM 8.3 %, flash 22.3 %), 147 host tests pass. Reviewer PASS; its minor (sample taken before the period end) was fixed by reordering `periodEnded` before `takeSampleNow`. Not run on hardware: see T10/T11.
+- T12 (automated part, NOT ticked) — `pio run && pio test -e native` pass (147 tests, firmware builds); final-mode spec-reviewer PASS over `e59a5b9..HEAD` with the AC1-AC17 / E1-E14 matrix: covered on host, hardware-only items pending in T10/T11 (AC1 timing, AC9 shorted input, AC10 at the pin, AC14 sample count, AC17, E9, E10, E12 buffer). T12 stays unticked until those observations exist.
+- T13 — `README.md` (pins, commands, constants and where each limit lives, duration, safety, 3.3 V caveat). Review needed 3 fix rounds, all factual accuracy (limits location, example numbers, row-count bound); PASS in round 3.
 
 ## Decision
 (Decisions that did not follow the specification, and the reason for the change.)
@@ -26,6 +28,11 @@ Feature: Open-loop duty sweep for the thermal load
 
 ## Follow-ups
 (Out-of-scope ideas; do not act on them inside this feature.)
+- T10 and T11 (human, hardware): flash and run the manual checks; then tick T12.
+- `Sweep::addRow` drops rows silently beyond `kMaxRows` (12); a step size below ~2.1 % would lose rows. Consider a static_assert tying kMaxRows to kCapPercent/kStepPercent.
+- `haveMeasurement_` is set by a period with zero samples; a `start` just after boot can be refused with 'no measurement yet' instead of queued (reviewer minors on the final pass).
+- `kStartupBoundS` is defined but unused; `kMaxStartPercent` (25) in commands.cpp duplicates `kCapPercent`.
+- `StepRow::dutyPercent` (nominal) vs printed percentage (counts/4095).
 - plan.md lists a 'step list' under duty.h; T2's Done when did not require it, so it is built where T6 needs it.
 - Parser accepts `start 0x10`, `start +5`, `start 1e1` (strtof forms) and treats a line of 32+ characters as Unknown even if the tail is padding; both are harmless because N is bounded 0..25 and the cap holds downstream. Tighten only if wanted.
 - Log lines on a zero-sample period (stalled loop) show the held values without marking them stale (reviewer minor, consistent with plan D4). No test starts near the uint32 `millis()` wrap (arithmetic is wrap-safe by inspection).
@@ -33,6 +40,7 @@ Feature: Open-loop duty sweep for the thermal load
 
 ## Learnings
 (Gotchas future tasks should know.)
+- README claims about 'where each limit lives' were wrong twice: the duty cap is `kCapCounts` in duty.h, not SweepConfig.h; always check docs against the code.
 - Do not run `pio test -e native` while another task's failing tests exist in the tree: a missing header aborts the whole run. Reviews therefore run strictly after the implementation and before the next task's test-writer.
 - `pio` is not on PATH; `export PATH="$HOME/.platformio/penv/bin:$PATH"` before `pio ...`.
 - Unity is downloaded by `pio test -e native` on first use (network needed once); it worked here.

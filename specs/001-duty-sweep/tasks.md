@@ -141,7 +141,7 @@ Commit convention: short imperative subject with the task ID, e.g. `T3: add meas
   - Parallel: no
   - Owner: agent
 
-- [ ] **T13: Write the README**
+- [x] **T13: Write the README**
   - Covers: plan.md "Documentation impact" row marked `task` (README)
   - Tests: none (docs only)
   - Depends on: T12
