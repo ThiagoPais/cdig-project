@@ -69,7 +69,8 @@ private:
     static constexpr size_t kHistory = sweepcfg::kSettleBufferSize;
     static_assert(sweepcfg::kSettleWindowS <= sweepcfg::kSettleBufferSize,
                   "settle window must fit in the history ring");
-    static constexpr size_t kMaxRows = 12;
+    static constexpr size_t kMaxRows =
+        static_cast<size_t>(sweepcfg::kCapPercent / sweepcfg::kStepPercent) + 2;  // 0 % row + steps + 1 spare
     float loadHist_[kHistory];
     float ambHist_[kHistory];
     size_t histCount_ = 0;   // entries since the step began (not capped)

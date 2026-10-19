@@ -30,7 +30,7 @@ WindowAverager loadAverager;
 WindowAverager ambientAverager;
 uint16_t writtenDuty = 0xFFFF;  // forces the first write
 
-// The only place the duty reaches the pin (plan D5): clampDuty enforces the 25 % cap.
+// The only place the duty reaches the pin (plan D5): clampDuty enforces the configured cap (SWEEP_CAP_PERCENT).
 void writeDutyCounts(uint16_t counts) {
     ledcWrite(kPwmChannel, clampDuty(counts));
 }

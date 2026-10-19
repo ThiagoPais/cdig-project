@@ -1515,6 +1515,55 @@ void test_G1_end_to_end_simulated_sweep_reports_three_duties_within_half_percent
     }
 }
 
+
+// ---- single place for the maximum duty: everything derives from sweepcfg::kCapPercent ----
+
+static std::string capText() {
+    char buf[32];
+    snprintf(buf, sizeof buf, "%g", (double)sweepcfg::kCapPercent);
+    return buf;
+}
+
+void test_AC1_cfg_ready_message_shows_configured_cap() {
+    std::string want = "0.." + capText();
+    bool found = false;
+    for (const auto& l : sink.lines) {
+        size_t p = l.find("0..");
+        if (p == std::string::npos) continue;
+        TEST_ASSERT_TRUE_MESSAGE(l.compare(p, want.size(), want) == 0, l.c_str());
+        found = true;
+    }
+    TEST_ASSERT_TRUE(found);
+}
+
+void test_E13_cfg_bad_start_usage_shows_configured_cap() {
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::BadStart), 1100);
+    std::string want = "N from 0 to " + capText();
+    TEST_ASSERT_TRUE(sink.anyHas(want.c_str()));
+}
+
+void test_AC2_AC10_cfg_full_sweep_last_step_is_cap_and_row_count_derived() {
+    startAt(0.0f);
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 20000) tick(25.0f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    size_t expectRows = 1 + (size_t)(sweepcfg::kCapPercent / sweepcfg::kStepPercent + 1e-4f);
+    TEST_ASSERT_EQUAL_UINT32(expectRows, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, sw->row(sw->rowCount() - 1).dutyCounts);
+}
+
+void test_E13_cfg_start_at_cap_percent_runs_exactly_one_step_at_cap() {
+    startAt(sweepcfg::kCapPercent);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+    int guard = 0;
+    while (sw->state() != SweepState::Done && guard++ < 20000) tick(25.0f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Done);
+    TEST_ASSERT_EQUAL_UINT32(1, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, sw->row(0).dutyCounts);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC1_ready_message_lists_commands_and_settle_values);
@@ -1617,5 +1666,9 @@ int main(int, char**) {
     RUN_TEST(test_AC10_AC11_start_10_never_exceeds_1023_counts_in_period_log_or_table);
     RUN_TEST(test_AC10_AC11_start_25_never_exceeds_1023_counts_in_period_log_or_table);
     RUN_TEST(test_G1_end_to_end_simulated_sweep_reports_three_duties_within_half_percent);
+    RUN_TEST(test_AC1_cfg_ready_message_shows_configured_cap);
+    RUN_TEST(test_E13_cfg_bad_start_usage_shows_configured_cap);
+    RUN_TEST(test_AC2_AC10_cfg_full_sweep_last_step_is_cap_and_row_count_derived);
+    RUN_TEST(test_E13_cfg_start_at_cap_percent_runs_exactly_one_step_at_cap);
     return UNITY_END();
 }

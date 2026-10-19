@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "SweepConfig.h"
+
 namespace {
-constexpr float kMaxStartPercent = 25.0f;
+constexpr float kMaxStartPercent = sweepcfg::kCapPercent;
 
 bool isSpace(char c) { return c == ' ' || c == '\t'; }
 

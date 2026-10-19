@@ -1,5 +1,8 @@
 #include <unity.h>
 #include <string.h>
+#include <stdio.h>
+
+#include "SweepConfig.h"
 
 #include "commands.h"
 
@@ -181,6 +184,23 @@ void test_E12_line_split_across_calls() {
     TEST_ASSERT_EQUAL_FLOAT(7.5f, b.cmds[0].startPercent);
 }
 
+
+// ---- E13 / AC2: the largest accepted start value is sweepcfg::kCapPercent ----
+
+void test_E13_cfg_start_at_cap_percent_is_accepted() {
+    char buf[48];
+    snprintf(buf, sizeof buf, "start %g\n", (double)sweepcfg::kCapPercent);
+    Command c = parseOne(buf);
+    TEST_ASSERT_TRUE(c.type == CmdType::Start);
+    TEST_ASSERT_EQUAL_FLOAT(sweepcfg::kCapPercent, c.startPercent);
+}
+
+void test_E13_cfg_start_above_cap_percent_is_bad_start() {
+    char buf[48];
+    snprintf(buf, sizeof buf, "start %g\n", (double)(sweepcfg::kCapPercent + 0.5f));
+    TEST_ASSERT_TRUE(parseOne(buf).type == CmdType::BadStart);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC2_start_without_number_is_start_zero);
@@ -204,5 +224,7 @@ int main(int, char**) {
     RUN_TEST(test_E12_two_lines_back_to_back_in_order);
     RUN_TEST(test_E12_back_to_back_with_cr_and_unknown_in_between);
     RUN_TEST(test_E12_line_split_across_calls);
+    RUN_TEST(test_E13_cfg_start_at_cap_percent_is_accepted);
+    RUN_TEST(test_E13_cfg_start_above_cap_percent_is_bad_start);
     return UNITY_END();
 }

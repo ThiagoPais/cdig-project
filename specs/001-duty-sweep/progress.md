@@ -23,11 +23,16 @@ Feature: Open-loop duty sweep for the thermal load
 
 - Output text formats: plan.md says 'fixed formats chosen in the tasks' but tasks.md did not choose them. The executor chose them while briefing the T5 test-writer (substrings asserted by tests/test_sweep): `READY`, `START from <N> %`, `REFUSED: ...` (reasons: reset required, already running, no measurement, ambient, usage), `STOPPED`, `NOTHING RUNNING`, `CUTOFF load ...`, `CUTOFF <sensor> sensor reading invalid`, `UNKNOWN COMMAND`, `TEMP load=<t> C count=<c> n=<n> ambient=...`. Spec is silent on wording, so no deviation from it.
 
+- Change request (2026-10-14, owner): maximum duty raised from 25 % to 50 % for the firmware build, and made a single build-time setting `SWEEP_CAP_PERCENT` (SweepConfig.h default 25, platformio.ini sets 50 for the firmware env; derived: kCapCounts, `start N` bound, last step, kMaxRows, READY/usage text). DRIFT: spec.md (Constraints 'Duty cap 25 %', AC10, E13, and 'at their rating' arguments) and plan.md (D6, D12, R10) still say 25 %. Not edited: they need the owner's approval; proposed edit: replace the fixed 25 % by 'the configured cap SWEEP_CAP_PERCENT (default 25)' and add the resistor-power caveat. Reviewer PASS; tests 156/156 at the default.
+
+- Owner decision (2026-10-18, Thiago Cardoso): the 50 % duty cap (`SWEEP_CAP_PERCENT=50`, 2047 counts) set in platformio.ini for the firmware build is ACCEPTED, including the resistor-power consequence (about 0.48 W per 150 ohm resistor at the cap, against the 1/4 W rating). It supersedes the default 25 % of this spec (Constraints 'Duty cap 25 %', AC10, E13) and of plan D6/D12/R10 for this firmware; the host tests keep using the default 25 %. This closes the drift recorded on 2026-10-14 as an accepted decision. The text of spec.md and plan.md was NOT changed (needs a separate edit and re-approval if the owner wants the documents to say 50 %). Feature 002 (specs/002-prbs-experiment/) relies on this decision.
+
 ## Blocked
 - (none) Format: Blocked: T# — <what was tried, observed failure, question for the human>
 
 ## Follow-ups
 (Out-of-scope ideas; do not act on them inside this feature.)
+- Hardware run (2026-10-13/14): T10 checks passed (READY, temp n=400, cutoff on shorted input). T11 `start 20` ran correctly (offset 0.50 C, STEP 20 %, LOG lines) but killing the terminal / Ctrl+C reset the board (DTR drop via auto-reset circuit), so the sweep and its table were lost: E10/M4 does not hold on this hardware. Workaround for long runs: tmux + `stty -F /dev/ttyACM0 -hupcl` + `script -f` log. Candidate fixes: persist rows, reset-reason message, reconsider NG4. Not fixed yet; T11 and T12 stay unticked.
 - T10 and T11 (human, hardware): flash and run the manual checks; then tick T12.
 - `Sweep::addRow` drops rows silently beyond `kMaxRows` (12); a step size below ~2.1 % would lose rows. Consider a static_assert tying kMaxRows to kCapPercent/kStepPercent.
 - `haveMeasurement_` is set by a period with zero samples; a `start` just after boot can be refused with 'no measurement yet' instead of queued (reviewer minors on the final pass).

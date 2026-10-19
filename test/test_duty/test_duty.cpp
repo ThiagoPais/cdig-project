@@ -71,6 +71,26 @@ void test_E8_countsToPercent_uses_4095_scale() {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.49f, countsToPercent(102));
 }
 
+
+// ---- single place for the maximum duty: everything derives from sweepcfg::kCapPercent ----
+
+void test_AC10_cfg_kCapCounts_is_floor_of_cap_percent_of_full_scale() {
+    uint16_t expected = (uint16_t)(sweepcfg::kCapPercent * kFullScale / 100.0f);
+    TEST_ASSERT_EQUAL_UINT16(expected, kCapCounts);
+}
+
+void test_AC10_cfg_clampDuty_limits_to_derived_cap() {
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, clampDuty((uint16_t)(kCapCounts + 1)));
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, clampDuty(4095));
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, clampDuty(65535));
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, clampDuty(kCapCounts));
+}
+
+void test_AC10_cfg_percentToCounts_of_cap_percent_is_cap_counts() {
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, percentToCounts(sweepcfg::kCapPercent));
+    TEST_ASSERT_EQUAL_UINT16(kCapCounts, percentToCounts(100.0f));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC10_constants_full_scale_and_cap);
@@ -84,5 +104,8 @@ int main(int, char**) {
     RUN_TEST(test_E8_percentToCounts_rounds_to_nearest);
     RUN_TEST(test_AC10_percentToCounts_never_exceeds_cap);
     RUN_TEST(test_E8_countsToPercent_uses_4095_scale);
+    RUN_TEST(test_AC10_cfg_kCapCounts_is_floor_of_cap_percent_of_full_scale);
+    RUN_TEST(test_AC10_cfg_clampDuty_limits_to_derived_cap);
+    RUN_TEST(test_AC10_cfg_percentToCounts_of_cap_percent_is_cap_counts);
     return UNITY_END();
 }

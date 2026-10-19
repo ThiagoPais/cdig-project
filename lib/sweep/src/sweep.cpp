@@ -24,7 +24,9 @@ void Sweep::begin(uint32_t) {
     duty_ = 0;
     char buf[96];
     emit("READY");
-    emit("commands: start [N] (N = 0..25 %), stop, results, temp");
+    snprintf(buf, sizeof buf, "commands: start [N] (N = 0..%g %%), stop, results, temp",
+             static_cast<double>(sweepcfg::kCapPercent));
+    emit(buf);
     snprintf(buf, sizeof buf, "settle: threshold=%.1f C, window=%u s",
              static_cast<double>(sweepcfg::kSettleThresholdC),
              static_cast<unsigned>(sweepcfg::kSettleWindowS));
@@ -225,7 +227,9 @@ void Sweep::onCommand(const Command& c, uint32_t nowMs) {
             handleStart(c, nowMs);
             break;
         case CmdType::BadStart:
-            emit("REFUSED: usage: start | start N (N from 0 to 25)");
+            snprintf(buf, sizeof buf, "REFUSED: usage: start | start N (N from 0 to %g)",
+                     static_cast<double>(sweepcfg::kCapPercent));
+            emit(buf);
             break;
         case CmdType::Unknown:
             emit("UNKNOWN COMMAND: valid commands: start [N], stop, results, temp");

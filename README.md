@@ -37,7 +37,7 @@ The serial monitor is configured with `monitor_dtr = 0` and `monitor_rts = 0` to
 | Command | Effect |
 | --- | --- |
 | `start` | start a sweep from 0 % duty |
-| `start N` | start from N % duty (0 to 25), then N + 2.5, N + 5 ... up to 25 % |
+| `start N` | start from N % duty (0 up to the cap), then N + 2.5, N + 5 ... up to the cap |
 | `stop` | stop the sweep, duty 0 % |
 | `results` | print the table so far, and the targets if the sweep finished |
 | `temp` | print the latest load and ambient temperature, raw ADC count and sample count |
@@ -49,7 +49,7 @@ temperature (let it cool first) or after a cutoff (reset the board).
 
 1. Holds 0 % until the load settles, then computes the offset between the two sensors
    (mean of load minus ambient over the settle window) and applies it to the load temperature afterwards.
-2. Applies each duty step (2.5 % increments, at most 25 %), waiting until the load temperature changes
+2. Applies each duty step (2.5 % increments, up to the cap), waiting until the load temperature changes
    by at most 0.5 degrees C (highest minus lowest of the per-second values) over 2 minutes (a step that does not settle in 45 minutes is recorded as
    `no`).
 3. Prints a log line every 5 seconds, then a table and the interpolated duty for 55, 60 and 65 degrees C.
@@ -72,28 +72,50 @@ TARGET 60.0 C: duty=17.5 % (717 counts)
 
 ## Safety
 
-- The duty never exceeds 25 % (1023 of 4095 counts, `kCapCounts` in `lib/sweep/include/duty.h`): about
-  0.24 W per resistor, just under the 1/4 W rating.
+- The duty never exceeds the cap `SWEEP_CAP_PERCENT` (see above; 25 % = 1023 of 4095 counts by default):
+  at 25 % about 0.24 W per resistor, just under the 1/4 W rating; higher caps exceed it.
 - If the uncorrected load temperature reaches 80 degrees C, or a sensor's window-mean count is 0 or 4095
   (short or saturation), the duty goes to 0 % and stays there until the board is reset.
 - A disconnected (floating) sensor is not detected; only the duty cap protects the resistors then.
 - The PWM pin may glitch for a moment while the board boots or resets (accepted).
 
+## Maximum duty (one place to change it)
+
+The highest duty the firmware will ever command is the build setting **`SWEEP_CAP_PERCENT`** (percent of the
+12-bit range, default 25 in `lib/sweep/include/SweepConfig.h`). This project's firmware build sets it in
+`platformio.ini`:
+
+```
+build_flags = -DSWEEP_CAP_PERCENT=50
+```
+
+Everything else derives from that one number: the hard cap in counts (`kCapCounts`, `duty.h`), the largest
+accepted `start N`, the last sweep step, the capacity of the result table, and the percentages printed in the
+`READY` and usage messages. To try another value without editing a file, use the environment:
+
+```
+PLATFORMIO_BUILD_FLAGS="-DSWEEP_CAP_PERCENT=40" pio run -t upload --upload-port /dev/ttyACM0
+```
+
+Values from above 0 up to 100 are accepted (anything else fails to compile). The host tests
+(`pio test -e native`) use the default (25) and some of them assert 25 % / 1023 counts, so run them without
+`PLATFORMIO_BUILD_FLAGS` set. The firmware shows the active cap in its `READY` message (`N = 0..50`), which is
+also the quickest way to confirm that the board runs the build you think it does.
+
+**Resistor power:** each of the three 150 ohm resistors dissipates about 0.96 W x (cap / 100) at 12 V
+(0.24 W at 25 %, 0.38 W at 40 %, 0.48 W at 50 %), against a 1/4 W rating. Raise the cap in steps and watch the
+first runs.
+
 ## Tunable constants
 
-In `lib/sweep/include/SweepConfig.h`: settle threshold (0.5 degrees C), settle window (120 s), step
-timeout (2700 s), step size (2.5 %), last step (`kCapPercent`, 25 %: where the sweep stops), cutoff
-(80 degrees C), start tolerance (3.0 degrees C), log period (5 s), PWM frequency (1 kHz) and the target
-temperatures.
+In `lib/sweep/include/SweepConfig.h`: settle threshold (0.5 degrees C), settle window (120 s), step timeout
+(2700 s), step size (2.5 %), cutoff (80 degrees C), start tolerance (3.0 degrees C), log period (5 s), PWM
+frequency (1 kHz) and the target temperatures.
 
-Other limits live elsewhere:
-- the hard duty cap `kCapCounts` (1023 counts) in `lib/sweep/include/duty.h`; raising `kCapPercent` alone
-  does not raise it;
-- the largest accepted `start N` (25) in `lib/sweep/src/commands.cpp`;
-- the settle window cannot exceed `kSettleBufferSize` (600 s, also in `SweepConfig.h`);
-- the table holds at most `kMaxRows` (12) rows (`lib/sweep/include/sweep.h`), and rows beyond that are
-  dropped silently. A sweep from 0 % records 1 + 25 / step rows (the 0 % row plus one per step), so the
-  step size must stay above about 2.1 % (25 % / 12 rows).
+Limits that are not free: the settle window cannot exceed `kSettleBufferSize` (600 s, also in
+`SweepConfig.h`), and the table capacity is derived from the cap and the step size (a step size below about
+2.1 % with a cap of 25 % would need more rows than `kMaxRows` in `lib/sweep/include/sweep.h` allows;
+the formula there is `cap / step + 2`).
 
 ## Layout
 

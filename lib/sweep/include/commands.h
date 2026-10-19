@@ -4,7 +4,7 @@
 // Serial command parser (plan D9). Lines end with '\n'; '\r' is ignored; commands are
 // case-sensitive; leading/trailing spaces are trimmed; empty lines produce nothing.
 //   start        -> Start, startPercent = 0
-//   start N      -> Start, startPercent = N (0..25), otherwise BadStart
+//   start N      -> Start, startPercent = N (0..SWEEP_CAP_PERCENT), otherwise BadStart
 //   stop | results | temp
 //   anything else (including a line longer than the buffer) -> Unknown
 enum class CmdType { None, Start, Stop, Results, Temp, Unknown, BadStart };
