@@ -127,7 +127,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 3 (M3): The `Prbs` unit
 
-- [ ] **T9: Load and validate a sequence in `Prbs`**
+- [x] **T9: Load and validate a sequence in `Prbs`**
   - Covers: AC1, AC2, E5, E7, E8, E11, E12
   - Depends on: none
   - Files: `lib/prbs/include/PrbsConfig.h` (new), `lib/prbs/include/prbs.h` (new), `lib/prbs/src/prbs.cpp` (new), `test/test_prbs/test_prbs.cpp` (new)
@@ -135,7 +135,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T10: Run playback and data lines in `Prbs`**
+- [x] **T10: Run playback and data lines in `Prbs`**
   - Covers: AC3 (checks 4 to 6 of D8), AC4, AC5, AC7, AC10, AC11 (pace is a function of the clock only), E6
   - Depends on: T9
   - Files: `lib/prbs/include/prbs.h`, `lib/prbs/src/prbs.cpp`, `test/test_prbs/test_prbs.cpp`
@@ -143,7 +143,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T11: Safety, stop and latch in `Prbs`**
+- [x] **T11: Safety, stop and latch in `Prbs`**
   - Covers: AC8, AC9, AC10, E3 (the PRBS latch)
   - Depends on: T10
   - Files: `lib/prbs/include/prbs.h`, `lib/prbs/src/prbs.cpp`, `test/test_prbs/test_prbs.cpp`
