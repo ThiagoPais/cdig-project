@@ -1,0 +1,246 @@
+Script started on 2026-10-14 07:28:52-03:00 [COMMAND="pio device monitor -p /dev/ttyACM0 -b 115200 --echo" TERM="tmux-256color" TTY="/dev/pts/3" COLUMNS="196" LINES="32"]
+--- forcing DTR inactive
+--- forcing RTS inactive
+--- Terminal on /dev/ttyACM0 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13232
+load:0x40080400,len:3028
+entry 0x400805e4
+READY
+commands: start [N] (N = 0..25 %), stop, results, temp
+settle: threshold=0.5 C, window=120 s
+sa
+UNKNOWN COMMAND: valid commands: start [N], stop, results, temp
+start 25
+START from 25.0 %
+LOG t=5 duty=0.00% (0) load=19.7 C ambient=20.3 C load_adc=734.4 ambient_adc=755.3
+LOG t=10 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=733.4 ambient_adc=751.7
+LOG t=15 duty=0.00% (0) load=19.8 C ambient=20.2 C load_adc=735.3 ambient_adc=753.1
+LOG t=20 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=733.1 ambient_adc=753.5
+LOG t=25 duty=0.00% (0) load=19.7 C ambient=20.3 C load_adc=733.9 ambient_adc=754.9
+LOG t=30 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=732.9 ambient_adc=753.0
+LOG t=35 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=732.5 ambient_adc=750.9
+LOG t=40 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=734.7 ambient_adc=751.4
+LOG t=45 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=732.7 ambient_adc=753.1
+LOG t=50 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=733.7 ambient_adc=751.3
+LOG t=55 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=733.2 ambient_adc=752.2
+LOG t=60 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=734.7 ambient_adc=752.5
+LOG t=65 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=732.8 ambient_adc=751.4
+LOG t=70 duty=0.00% (0) load=19.8 C ambient=20.2 C load_adc=735.5 ambient_adc=751.4
+LOG t=75 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=734.0 ambient_adc=752.7
+LOG t=80 duty=0.00% (0) load=19.8 C ambient=20.2 C load_adc=735.6 ambient_adc=752.6
+LOG t=85 duty=0.00% (0) load=19.8 C ambient=20.1 C load_adc=736.0 ambient_adc=749.7
+LOG t=90 duty=0.00% (0) load=19.8 C ambient=20.2 C load_adc=738.3 ambient_adc=750.4
+LOG t=95 duty=0.00% (0) load=19.7 C ambient=20.1 C load_adc=735.1 ambient_adc=747.7
+LOG t=100 duty=0.00% (0) load=19.7 C ambient=20.2 C load_adc=734.9 ambient_adc=750.7
+LOG t=105 duty=0.00% (0) load=19.8 C ambient=20.2 C load_adc=737.0 ambient_adc=750.5
+LOG t=110 duty=0.00% (0) load=19.9 C ambient=20.2 C load_adc=739.2 ambient_adc=750.3
+LOG t=115 duty=0.00% (0) load=19.8 C ambient=20.1 C load_adc=737.8 ambient_adc=749.6
+OFFSET -0.45 C (load - ambient at 0 %)
+STEP 25.0 % (1023 counts)
+LOG t=120 duty=24.98% (1023) load=20.5 C ambient=20.1 C load_adc=745.7 ambient_adc=750.1
+LOG t=125 duty=24.98% (1023) load=21.3 C ambient=20.1 C load_adc=777.7 ambient_adc=750.0
+LOG t=130 duty=24.98% (1023) load=23.1 C ambient=20.2 C load_adc=841.7 ambient_adc=752.1
+LOG t=135 duty=24.98% (1023) load=25.1 C ambient=20.2 C load_adc=918.1 ambient_adc=751.2
+LOG t=140 duty=24.98% (1023) load=27.3 C ambient=20.2 C load_adc=999.1 ambient_adc=750.3
+LOG t=145 duty=24.98% (1023) load=29.3 C ambient=20.1 C load_adc=1075.5 ambient_adc=749.6
+LOG t=150 duty=24.98% (1023) load=31.2 C ambient=20.1 C load_adc=1146.0 ambient_adc=748.8
+LOG t=155 duty=24.98% (1023) load=32.8 C ambient=20.1 C load_adc=1203.4 ambient_adc=749.4
+LOG t=160 duty=24.98% (1023) load=34.1 C ambient=20.1 C load_adc=1253.0 ambient_adc=749.3
+LOG t=165 duty=24.98% (1023) load=35.3 C ambient=20.2 C load_adc=1296.8 ambient_adc=750.7
+LOG t=170 duty=24.98% (1023) load=36.3 C ambient=20.1 C load_adc=1333.3 ambient_adc=749.2
+LOG t=175 duty=24.98% (1023) load=37.2 C ambient=20.1 C load_adc=1367.6 ambient_adc=748.6
+LOG t=180 duty=24.98% (1023) load=38.1 C ambient=20.1 C load_adc=1400.9 ambient_adc=749.8
+LOG t=185 duty=24.98% (1023) load=38.6 C ambient=20.1 C load_adc=1418.5 ambient_adc=749.3
+LOG t=190 duty=24.98% (1023) load=39.1 C ambient=20.1 C load_adc=1440.5 ambient_adc=749.0
+LOG t=195 duty=24.98% (1023) load=39.8 C ambient=20.1 C load_adc=1465.5 ambient_adc=746.8
+LOG t=200 duty=24.98% (1023) load=40.3 C ambient=20.1 C load_adc=1482.7 ambient_adc=749.3
+LOG t=205 duty=24.98% (1023) load=40.9 C ambient=20.1 C load_adc=1503.9 ambient_adc=748.0
+LOG t=210 duty=24.98% (1023) load=41.0 C ambient=20.1 C load_adc=1511.0 ambient_adc=747.9
+LOG t=215 duty=24.98% (1023) load=41.4 C ambient=20.0 C load_adc=1524.8 ambient_adc=745.9
+LOG t=220 duty=24.98% (1023) load=41.8 C ambient=20.1 C load_adc=1538.3 ambient_adc=748.1
+LOG t=225 duty=24.98% (1023) load=42.1 C ambient=20.1 C load_adc=1549.2 ambient_adc=746.8
+LOG t=230 duty=24.98% (1023) load=42.3 C ambient=20.1 C load_adc=1558.1 ambient_adc=747.5
+LOG t=235 duty=24.98% (1023) load=42.5 C ambient=20.0 C load_adc=1565.9 ambient_adc=746.2
+LOG t=240 duty=24.98% (1023) load=42.8 C ambient=20.1 C load_adc=1575.0 ambient_adc=747.2
+LOG t=245 duty=24.98% (1023) load=43.2 C ambient=20.0 C load_adc=1590.1 ambient_adc=746.2
+LOG t=250 duty=24.98% (1023) load=43.2 C ambient=20.1 C load_adc=1591.1 ambient_adc=746.6
+LOG t=255 duty=24.98% (1023) load=43.2 C ambient=20.0 C load_adc=1593.2 ambient_adc=745.4
+LOG t=260 duty=24.98% (1023) load=43.6 C ambient=20.0 C load_adc=1606.8 ambient_adc=744.5
+LOG t=265 duty=24.98% (1023) load=43.8 C ambient=20.0 C load_adc=1614.0 ambient_adc=745.8
+LOG t=270 duty=24.98% (1023) load=44.0 C ambient=20.1 C load_adc=1622.2 ambient_adc=747.2
+LOG t=275 duty=24.98% (1023) load=44.0 C ambient=20.0 C load_adc=1620.2 ambient_adc=744.3
+LOG t=280 duty=24.98% (1023) load=44.1 C ambient=20.0 C load_adc=1624.8 ambient_adc=745.9
+LOG t=285 duty=24.98% (1023) load=44.5 C ambient=20.0 C load_adc=1638.2 ambient_adc=746.2
+LOG t=290 duty=24.98% (1023) load=44.5 C ambient=20.0 C load_adc=1638.4 ambient_adc=746.4
+LOG t=295 duty=24.98% (1023) load=44.5 C ambient=20.0 C load_adc=1640.1 ambient_adc=744.9
+LOG t=300 duty=24.98% (1023) load=44.6 C ambient=20.0 C load_adc=1642.7 ambient_adc=745.3
+LOG t=305 duty=24.98% (1023) load=44.8 C ambient=20.0 C load_adc=1649.8 ambient_adc=743.0
+LOG t=310 duty=24.98% (1023) load=45.0 C ambient=20.0 C load_adc=1656.8 ambient_adc=744.7
+LOG t=315 duty=24.98% (1023) load=44.9 C ambient=20.0 C load_adc=1655.9 ambient_adc=745.6
+LOG t=320 duty=24.98% (1023) load=45.1 C ambient=20.0 C load_adc=1663.4 ambient_adc=743.9
+LOG t=325 duty=24.98% (1023) load=45.3 C ambient=19.9 C load_adc=1670.4 ambient_adc=742.4
+LOG t=330 duty=24.98% (1023) load=45.4 C ambient=20.0 C load_adc=1672.0 ambient_adc=744.9
+LOG t=335 duty=24.98% (1023) load=45.5 C ambient=20.0 C load_adc=1678.1 ambient_adc=743.6
+LOG t=340 duty=24.98% (1023) load=45.6 C ambient=20.0 C load_adc=1679.7 ambient_adc=743.0
+LOG t=345 duty=24.98% (1023) load=45.6 C ambient=20.0 C load_adc=1681.5 ambient_adc=744.3
+LOG t=350 duty=24.98% (1023) load=45.7 C ambient=20.0 C load_adc=1685.9 ambient_adc=743.6
+LOG t=355 duty=24.98% (1023) load=45.8 C ambient=20.0 C load_adc=1688.2 ambient_adc=743.2
+LOG t=360 duty=24.98% (1023) load=46.0 C ambient=20.0 C load_adc=1695.4 ambient_adc=742.9
+LOG t=365 duty=24.98% (1023) load=46.0 C ambient=19.9 C load_adc=1696.0 ambient_adc=741.2
+LOG t=370 duty=24.98% (1023) load=45.9 C ambient=20.0 C load_adc=1690.7 ambient_adc=743.3
+LOG t=375 duty=24.98% (1023) load=46.0 C ambient=19.9 C load_adc=1696.6 ambient_adc=741.3
+LOG t=380 duty=24.98% (1023) load=46.1 C ambient=19.9 C load_adc=1700.8 ambient_adc=739.7
+LOG t=385 duty=24.98% (1023) load=46.4 C ambient=19.9 C load_adc=1711.0 ambient_adc=741.2
+LOG t=390 duty=24.98% (1023) load=46.2 C ambient=19.9 C load_adc=1701.4 ambient_adc=741.7
+LOG t=395 duty=24.98% (1023) load=46.3 C ambient=20.0 C load_adc=1706.8 ambient_adc=742.7
+LOG t=400 duty=24.98% (1023) load=46.5 C ambient=19.9 C load_adc=1712.6 ambient_adc=739.6
+LOG t=405 duty=24.98% (1023) load=46.5 C ambient=19.9 C load_adc=1712.7 ambient_adc=741.5
+LOG t=410 duty=24.98% (1023) load=46.6 C ambient=19.9 C load_adc=1718.6 ambient_adc=739.7
+LOG t=415 duty=24.98% (1023) load=46.7 C ambient=19.8 C load_adc=1720.0 ambient_adc=737.8
+LOG t=420 duty=24.98% (1023) load=46.8 C ambient=19.8 C load_adc=1726.3 ambient_adc=737.8
+LOG t=425 duty=24.98% (1023) load=46.9 C ambient=19.8 C load_adc=1727.5 ambient_adc=738.3
+LOG t=430 duty=24.98% (1023) load=46.9 C ambient=19.8 C load_adc=1729.0 ambient_adc=738.1
+LOG t=435 duty=24.98% (1023) load=46.9 C ambient=19.9 C load_adc=1727.4 ambient_adc=739.4
+LOG t=440 duty=24.98% (1023) load=46.9 C ambient=19.9 C load_adc=1729.3 ambient_adc=739.5
+LOG t=445 duty=24.98% (1023) load=47.0 C ambient=19.9 C load_adc=1731.1 ambient_adc=739.8
+LOG t=450 duty=24.98% (1023) load=47.0 C ambient=19.8 C load_adc=1732.1 ambient_adc=738.8
+LOG t=455 duty=24.98% (1023) load=47.1 C ambient=19.8 C load_adc=1736.8 ambient_adc=738.6
+LOG t=460 duty=24.98% (1023) load=47.2 C ambient=19.8 C load_adc=1741.4 ambient_adc=738.8
+LOG t=465 duty=24.98% (1023) load=47.1 C ambient=19.9 C load_adc=1737.0 ambient_adc=740.9
+LOG t=470 duty=24.98% (1023) load=47.2 C ambient=19.8 C load_adc=1739.8 ambient_adc=735.7
+LOG t=475 duty=24.98% (1023) load=47.3 C ambient=19.8 C load_adc=1744.8 ambient_adc=737.5
+LOG t=480 duty=24.98% (1023) load=47.5 C ambient=19.8 C load_adc=1750.9 ambient_adc=737.8
+LOG t=485 duty=24.98% (1023) load=47.3 C ambient=19.8 C load_adc=1745.7 ambient_adc=737.6
+LOG t=490 duty=24.98% (1023) load=47.5 C ambient=19.8 C load_adc=1752.2 ambient_adc=738.6
+LOG t=495 duty=24.98% (1023) load=47.4 C ambient=19.8 C load_adc=1748.3 ambient_adc=737.3
+LOG t=500 duty=24.98% (1023) load=47.5 C ambient=19.8 C load_adc=1752.3 ambient_adc=737.9
+LOG t=505 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1755.2 ambient_adc=737.8
+LOG t=510 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1756.5 ambient_adc=737.3
+LOG t=515 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1756.0 ambient_adc=737.1
+LOG t=520 duty=24.98% (1023) load=47.7 C ambient=19.7 C load_adc=1759.9 ambient_adc=734.6
+LOG t=525 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1757.0 ambient_adc=736.5
+LOG t=530 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1756.5 ambient_adc=736.3
+LOG t=535 duty=24.98% (1023) load=47.8 C ambient=19.7 C load_adc=1763.3 ambient_adc=734.8
+LOG t=540 duty=24.98% (1023) load=47.7 C ambient=19.8 C load_adc=1758.7 ambient_adc=737.1
+LOG t=545 duty=24.98% (1023) load=47.6 C ambient=19.8 C load_adc=1755.2 ambient_adc=736.5
+LOG t=550 duty=24.98% (1023) load=47.9 C ambient=19.8 C load_adc=1764.7 ambient_adc=736.7
+LOG t=555 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1769.4 ambient_adc=736.6
+LOG t=560 duty=24.98% (1023) load=48.0 C ambient=19.7 C load_adc=1769.2 ambient_adc=734.9
+LOG t=565 duty=24.98% (1023) load=47.9 C ambient=19.8 C load_adc=1767.5 ambient_adc=737.1
+LOG t=570 duty=24.98% (1023) load=47.9 C ambient=19.8 C load_adc=1767.9 ambient_adc=736.0
+LOG t=575 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1769.7 ambient_adc=735.4
+LOG t=580 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1768.3 ambient_adc=737.8
+LOG t=585 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1770.1 ambient_adc=736.2
+LOG t=590 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1768.7 ambient_adc=735.8
+LOG t=595 duty=24.98% (1023) load=48.0 C ambient=19.8 C load_adc=1771.5 ambient_adc=736.6
+LOG t=600 duty=24.98% (1023) load=48.1 C ambient=19.8 C load_adc=1775.4 ambient_adc=735.5
+LOG t=605 duty=24.98% (1023) load=48.1 C ambient=19.8 C load_adc=1773.5 ambient_adc=735.3
+LOG t=610 duty=24.98% (1023) load=48.2 C ambient=19.7 C load_adc=1776.4 ambient_adc=735.2
+LOG t=615 duty=24.98% (1023) load=48.2 C ambient=19.8 C load_adc=1777.4 ambient_adc=735.7
+LOG t=620 duty=24.98% (1023) load=48.2 C ambient=19.8 C load_adc=1776.5 ambient_adc=735.8
+LOG t=625 duty=24.98% (1023) load=48.4 C ambient=19.7 C load_adc=1783.7 ambient_adc=734.7
+LOG t=630 duty=24.98% (1023) load=48.4 C ambient=19.8 C load_adc=1783.7 ambient_adc=737.0
+LOG t=635 duty=24.98% (1023) load=48.3 C ambient=19.8 C load_adc=1781.2 ambient_adc=735.8
+LOG t=640 duty=24.98% (1023) load=48.4 C ambient=19.8 C load_adc=1783.1 ambient_adc=736.6
+LOG t=645 duty=24.98% (1023) load=48.5 C ambient=19.7 C load_adc=1789.4 ambient_adc=735.2
+LOG t=650 duty=24.98% (1023) load=48.5 C ambient=19.8 C load_adc=1787.7 ambient_adc=735.6
+LOG t=655 duty=24.98% (1023) load=48.6 C ambient=19.7 C load_adc=1794.1 ambient_adc=734.3
+LOG t=660 duty=24.98% (1023) load=48.4 C ambient=19.7 C load_adc=1786.0 ambient_adc=734.6
+LOG t=665 duty=24.98% (1023) load=48.6 C ambient=19.7 C load_adc=1794.0 ambient_adc=734.4
+LOG t=670 duty=24.98% (1023) load=48.6 C ambient=19.7 C load_adc=1791.3 ambient_adc=734.6
+LOG t=675 duty=24.98% (1023) load=48.6 C ambient=19.8 C load_adc=1791.8 ambient_adc=736.2
+LOG t=680 duty=24.98% (1023) load=48.7 C ambient=19.7 C load_adc=1797.5 ambient_adc=733.5
+LOG t=685 duty=24.98% (1023) load=48.7 C ambient=19.7 C load_adc=1796.1 ambient_adc=734.6
+LOG t=690 duty=24.98% (1023) load=48.9 C ambient=19.7 C load_adc=1802.2 ambient_adc=734.9
+LOG t=695 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1798.5 ambient_adc=734.1
+LOG t=700 duty=24.98% (1023) load=48.8 C ambient=19.8 C load_adc=1798.6 ambient_adc=736.8
+LOG t=705 duty=24.98% (1023) load=48.7 C ambient=19.8 C load_adc=1796.9 ambient_adc=735.3
+LOG t=710 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1799.0 ambient_adc=732.9
+LOG t=715 duty=24.98% (1023) load=48.7 C ambient=19.8 C load_adc=1796.2 ambient_adc=735.4
+LOG t=720 duty=24.98% (1023) load=48.7 C ambient=19.7 C load_adc=1796.5 ambient_adc=734.1
+LOG t=725 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1798.9 ambient_adc=734.9
+LOG t=730 duty=24.98% (1023) load=48.7 C ambient=19.8 C load_adc=1795.5 ambient_adc=736.3
+LOG t=735 duty=24.98% (1023) load=48.7 C ambient=19.8 C load_adc=1796.9 ambient_adc=735.9
+LOG t=740 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1801.2 ambient_adc=735.1
+LOG t=745 duty=24.98% (1023) load=48.8 C ambient=19.8 C load_adc=1800.1 ambient_adc=737.1
+LOG t=750 duty=24.98% (1023) load=48.8 C ambient=19.8 C load_adc=1801.6 ambient_adc=735.4
+LOG t=755 duty=24.98% (1023) load=48.8 C ambient=19.8 C load_adc=1798.4 ambient_adc=735.5
+LOG t=760 duty=24.98% (1023) load=49.0 C ambient=19.8 C load_adc=1807.5 ambient_adc=735.6
+LOG t=765 duty=24.98% (1023) load=48.9 C ambient=19.7 C load_adc=1802.8 ambient_adc=735.2
+LOG t=770 duty=24.98% (1023) load=49.0 C ambient=19.8 C load_adc=1807.7 ambient_adc=735.3
+LOG t=775 duty=24.98% (1023) load=49.0 C ambient=19.7 C load_adc=1807.1 ambient_adc=734.3
+LOG t=780 duty=24.98% (1023) load=48.9 C ambient=19.7 C load_adc=1804.2 ambient_adc=734.6
+LOG t=785 duty=24.98% (1023) load=48.9 C ambient=19.7 C load_adc=1804.0 ambient_adc=733.6
+LOG t=790 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1799.8 ambient_adc=735.0
+LOG t=795 duty=24.98% (1023) load=49.0 C ambient=19.8 C load_adc=1808.7 ambient_adc=735.5
+LOG t=800 duty=24.98% (1023) load=49.1 C ambient=19.7 C load_adc=1810.6 ambient_adc=734.2
+LOG t=805 duty=24.98% (1023) load=48.8 C ambient=19.7 C load_adc=1801.5 ambient_adc=732.6
+LOG t=810 duty=24.98% (1023) load=49.0 C ambient=19.7 C load_adc=1806.9 ambient_adc=734.7
+LOG t=815 duty=24.98% (1023) load=49.0 C ambient=19.7 C load_adc=1808.4 ambient_adc=734.2
+LOG t=820 duty=24.98% (1023) load=49.1 C ambient=19.7 C load_adc=1810.5 ambient_adc=734.4
+LOG t=825 duty=24.98% (1023) load=49.1 C ambient=19.8 C load_adc=1811.8 ambient_adc=735.3
+LOG t=830 duty=24.98% (1023) load=49.1 C ambient=19.7 C load_adc=1810.8 ambient_adc=735.0
+LOG t=835 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1815.4 ambient_adc=734.0
+LOG t=840 duty=24.98% (1023) load=49.2 C ambient=19.8 C load_adc=1814.5 ambient_adc=736.0
+LOG t=845 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1816.0 ambient_adc=735.2
+LOG t=850 duty=24.98% (1023) load=49.3 C ambient=19.8 C load_adc=1817.7 ambient_adc=736.0
+LOG t=855 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1814.1 ambient_adc=734.7
+LOG t=860 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1813.2 ambient_adc=734.7
+LOG t=865 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1817.0 ambient_adc=732.8
+LOG t=870 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1817.8 ambient_adc=735.2
+LOG t=875 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1815.7 ambient_adc=732.9
+LOG t=880 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1818.1 ambient_adc=734.4
+LOG t=885 duty=24.98% (1023) load=49.4 C ambient=19.8 C load_adc=1820.8 ambient_adc=735.4
+LOG t=890 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1818.5 ambient_adc=733.4
+LOG t=895 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1815.6 ambient_adc=731.9
+LOG t=900 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1820.3 ambient_adc=732.7
+LOG t=905 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1818.0 ambient_adc=732.4
+LOG t=910 duty=24.98% (1023) load=49.3 C ambient=19.8 C load_adc=1818.6 ambient_adc=736.0
+LOG t=915 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1816.2 ambient_adc=733.1
+LOG t=920 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1818.1 ambient_adc=735.1
+LOG t=925 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1816.6 ambient_adc=733.9
+LOG t=930 duty=24.98% (1023) load=49.2 C ambient=19.7 C load_adc=1815.9 ambient_adc=734.6
+LOG t=935 duty=24.98% (1023) load=49.3 C ambient=19.7 C load_adc=1818.9 ambient_adc=734.1
+SWEEP DONE
+TABLE offset=-0.45 C
+duty_pct duty_count load_C ambient_C load_adc ambient_adc settled
+24.98 1023 49.4 19.7 1822.9 734.3 yes
+TARGET 55.0 C: not reachable within the table
+TARGET 60.0 C: not reachable within the table
+TARGET 65.0 C: not reachable within the table
+^C
+Script done on 2026-10-14 07:59:04-03:00 [COMMAND_EXIT_CODE="0"]
+Script started on 2026-10-14 08:00:22-03:00 [COMMAND="pio device monitor -p /dev/ttyACM0 -b 115200 --echo" TERM="tmux-256color" TTY="/dev/pts/3" COLUMNS="196" LINES="32"]
+--- forcing DTR inactive
+--- forcing RTS inactive
+--- Terminal on /dev/ttyACM0 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13232
+load:0x40080400,len:3028
+entry 0x400805e4
+READY
+commands: start [N] (N = 0..25 %), stop, results, temp
+settle: threshold=0.5 C, window=120 s
+start 257.5
+REFUSED: usage: start | start N (N from 0 to 25)
+^C
+Script done on 2026-10-14 08:00:52-03:00 [COMMAND_EXIT_CODE="0"]
