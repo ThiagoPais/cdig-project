@@ -184,7 +184,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 5 (M5): The helper program
 
-- [ ] **T15: Read and validate the sequence file; log and exit-code skeleton**
+- [x] **T15: Read and validate the sequence file; log and exit-code skeleton**
   - Covers: AC12 (sequence file part), E9, E12 (helper side)
   - Depends on: T2
   - Files: `tools/prbs_run.py`, `test/helper/test_prbs_run.py`, `test/helper/fake_board.py` (new)
@@ -192,7 +192,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T16: Handshake, load and run start in the helper**
+- [x] **T16: Handshake, load and run start in the helper**
   - Covers: AC12 (load and confirm), AC13, E12 (board refuses the announcement)
   - Depends on: T15
   - Files: `tools/prbs_run.py`, `test/helper/test_prbs_run.py`, `test/helper/fake_board.py`
@@ -200,7 +200,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T17: Log the run and set the exit status in the helper**
+- [x] **T17: Log the run and set the exit status in the helper**
   - Covers: AC12 (log and exit status)
   - Depends on: T16
   - Files: `tools/prbs_run.py`, `test/helper/test_prbs_run.py`, `test/helper/fake_board.py`
@@ -208,7 +208,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T18: End an incomplete log correctly in the helper**
+- [x] **T18: End an incomplete log correctly in the helper**
   - Covers: AC14, AC15 (helper side), E4 (helper side)
   - Depends on: T17
   - Files: `tools/prbs_run.py`, `test/helper/test_prbs_run.py`, `test/helper/fake_board.py`
