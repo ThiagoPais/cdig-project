@@ -30,6 +30,9 @@ class PeriodScheduler {
 public:
     bool takeSampleNow(uint32_t nowMs);
     bool periodEnded(uint32_t nowMs);
+    // Re-anchors the scheduler: the origin becomes nowMs, the period counter returns to 0 and the sample
+    // spacing is reset (a PRBS run makes second k of the run exactly period k).
+    void restart(uint32_t nowMs);
 private:
     void start(uint32_t nowMs);
     bool started_ = false;

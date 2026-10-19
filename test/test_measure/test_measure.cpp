@@ -130,6 +130,102 @@ void test_AC14_sampling_window_repeats_in_second_period() {
     TEST_ASSERT_EQUAL_INT(400, inWindow);
 }
 
+// ---- T7: PeriodScheduler::restart (plan D5) ----
+
+// Runs a scheduler for a while so it has an old origin, then restarts at t0.
+static void warmUp(PeriodScheduler& s, uint32_t untilMs) {
+    for (uint32_t t = 0; t <= untilMs; t++) {
+        s.takeSampleNow(t);
+        s.periodEnded(t);
+    }
+}
+
+void test_AC4_restart_period_ends_exactly_once_at_t_plus_1000() {
+    PeriodScheduler s;
+    warmUp(s, 4500);  // old origin 0 would end a period at 5000
+    const uint32_t t0 = 4500;
+    s.restart(t0);
+    int ends = 0;
+    for (uint32_t t = t0; t < t0 + 3000; t++) {
+        s.takeSampleNow(t);
+        if (s.periodEnded(t)) {
+            TEST_ASSERT_TRUE_MESSAGE(t == t0 + 1000 || t == t0 + 2000,
+                                     "period ended at wrong time after restart");
+            ends++;
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(2, ends);
+}
+
+void test_AC4_restart_periodEnded_false_before_t_plus_1000_true_at_it() {
+    PeriodScheduler s;
+    warmUp(s, 2300);
+    const uint32_t t0 = 2300;
+    s.restart(t0);
+    for (uint32_t t = t0; t < t0 + 1000; t++) TEST_ASSERT_FALSE(s.periodEnded(t));
+    TEST_ASSERT_TRUE(s.periodEnded(t0 + 1000));
+    TEST_ASSERT_FALSE(s.periodEnded(t0 + 1001));
+}
+
+void test_AC4_restart_sample_allowed_at_t_even_if_sampled_1ms_before() {
+    PeriodScheduler s;
+    TEST_ASSERT_TRUE(s.takeSampleNow(7000));
+    s.restart(7001);
+    TEST_ASSERT_TRUE(s.takeSampleNow(7001));
+}
+
+void test_AC4_restart_sampling_window_is_first_800ms_only() {
+    PeriodScheduler s;
+    warmUp(s, 1950);  // old window state: inside the old period's no-sample zone
+    const uint32_t t0 = 1950;
+    s.restart(t0);
+    TEST_ASSERT_TRUE(s.takeSampleNow(t0));
+    int count = 1;
+    for (uint32_t t = t0 + 1; t < t0 + 1000; t++) {
+        bool take = s.takeSampleNow(t);
+        if (t >= t0 + 800) TEST_ASSERT_FALSE(take);
+        if (take) count++;
+    }
+    TEST_ASSERT_EQUAL_INT(400, count);
+}
+
+void test_AC4_restart_sample_spacing_restarts_at_2ms() {
+    PeriodScheduler s;
+    warmUp(s, 3333);
+    const uint32_t t0 = 3333;
+    s.restart(t0);
+    TEST_ASSERT_TRUE(s.takeSampleNow(t0));
+    TEST_ASSERT_FALSE(s.takeSampleNow(t0 + 1));
+    TEST_ASSERT_TRUE(s.takeSampleNow(t0 + 2));
+    TEST_ASSERT_FALSE(s.takeSampleNow(t0 + 3));
+    TEST_ASSERT_TRUE(s.takeSampleNow(t0 + 4));
+}
+
+void test_AC4_restart_second_period_after_restart_also_aligned() {
+    PeriodScheduler s;
+    warmUp(s, 1234);
+    const uint32_t t0 = 1234;
+    s.restart(t0);
+    int inWindow = 0;
+    for (uint32_t t = t0; t < t0 + 2000; t++) {
+        bool take = s.takeSampleNow(t);
+        s.periodEnded(t);
+        if (t >= t0 + 1000 && take) {
+            TEST_ASSERT_TRUE_MESSAGE(t < t0 + 1800, "sample after 800 ms of second period");
+            inWindow++;
+        }
+        if (t >= t0 + 800 && t < t0 + 1000) TEST_ASSERT_FALSE(take);
+    }
+    TEST_ASSERT_EQUAL_INT(400, inWindow);
+}
+
+void test_AC4_without_restart_origin_is_first_call() {
+    PeriodScheduler s;
+    TEST_ASSERT_TRUE(s.takeSampleNow(5000));
+    for (uint32_t t = 5001; t < 6000; t++) TEST_ASSERT_FALSE(s.periodEnded(t));
+    TEST_ASSERT_TRUE(s.periodEnded(6000));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC12_0250V_is_25C);
@@ -146,5 +242,12 @@ int main(int, char**) {
     RUN_TEST(test_AC14_no_sample_before_2ms_elapsed);
     RUN_TEST(test_AC14_exactly_one_period_end_per_1000ms);
     RUN_TEST(test_AC14_sampling_window_repeats_in_second_period);
+    RUN_TEST(test_AC4_restart_period_ends_exactly_once_at_t_plus_1000);
+    RUN_TEST(test_AC4_restart_periodEnded_false_before_t_plus_1000_true_at_it);
+    RUN_TEST(test_AC4_restart_sample_allowed_at_t_even_if_sampled_1ms_before);
+    RUN_TEST(test_AC4_restart_sampling_window_is_first_800ms_only);
+    RUN_TEST(test_AC4_restart_sample_spacing_restarts_at_2ms);
+    RUN_TEST(test_AC4_restart_second_period_after_restart_also_aligned);
+    RUN_TEST(test_AC4_without_restart_origin_is_first_call);
     return UNITY_END();
 }

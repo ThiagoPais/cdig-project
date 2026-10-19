@@ -99,7 +99,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 2 (M2): Additions to the existing libraries
 
-- [ ] **T6: Add the `prbs` commands to the parser**
+- [x] **T6: Add the `prbs` commands to the parser**
   - Covers: AC1, AC3 (command forms)
   - Depends on: none
   - Files: `lib/sweep/include/commands.h`, `lib/sweep/src/commands.cpp`, `lib/sweep/src/sweep.cpp` (only no-op `PrbsLoad`, `PrbsRun` and `BadPrbs` cases in `Sweep::onCommand`), `test/test_commands/test_commands.cpp` (add cases only)
@@ -107,7 +107,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T7: Add `PeriodScheduler::restart`**
+- [x] **T7: Add `PeriodScheduler::restart`**
   - Covers: AC4 (alignment of second k with measurement period k)
   - Depends on: none
   - Files: `lib/measure/include/measure.h`, `lib/measure/src/measure.cpp`, `test/test_measure/test_measure.cpp` (add cases only)
@@ -115,7 +115,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T8: Add `Sweep::observe` and the new ready and unknown-command words**
+- [x] **T8: Add `Sweep::observe` and the new ready and unknown-command words**
   - Covers: none (unblocks AC6 and E2; the changed texts are allowed by spec NG8)
   - Depends on: T6
   - Files: `lib/sweep/include/sweep.h`, `lib/sweep/src/sweep.cpp`, `test/test_sweep/test_sweep.cpp` (add cases only)

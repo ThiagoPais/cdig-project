@@ -6,12 +6,16 @@
 //   start        -> Start, startPercent = 0
 //   start N      -> Start, startPercent = N (0..SWEEP_CAP_PERCENT), otherwise BadStart
 //   stop | results | temp
+//   prbs load N  -> PrbsLoad, count = N (digits only, up to 9 digits; more digits give UINT32_MAX)
+//   prbs run     -> PrbsRun
+//   any other line starting with the word `prbs` -> BadPrbs
 //   anything else (including a line longer than the buffer) -> Unknown
-enum class CmdType { None, Start, Stop, Results, Temp, Unknown, BadStart };
+enum class CmdType { None, Start, Stop, Results, Temp, Unknown, BadStart, PrbsLoad, PrbsRun, BadPrbs };
 
 struct Command {
     CmdType type;
     float startPercent;
+    uint32_t count;  // PrbsLoad: announced number of values; 0 for every other command
 };
 
 class LineBuffer {

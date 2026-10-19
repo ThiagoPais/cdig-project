@@ -22,9 +22,9 @@ void Sweep::emit(const char* text) { out_.line(text); }
 void Sweep::begin(uint32_t) {
     state_ = SweepState::Idle;
     duty_ = 0;
-    char buf[96];
+    char buf[128];
     emit("READY");
-    snprintf(buf, sizeof buf, "commands: start [N] (N = 0..%g %%), stop, results, temp",
+    snprintf(buf, sizeof buf, "commands: start [N] (N = 0..%g %%), stop, results, temp, prbs load N, prbs run",
              static_cast<double>(sweepcfg::kCapPercent));
     emit(buf);
     snprintf(buf, sizeof buf, "settle: threshold=%.1f C, window=%u s",
@@ -44,10 +44,14 @@ void Sweep::cutoff(const char* text) {
     emit(text);
 }
 
-void Sweep::onPeriod(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient) {
+void Sweep::observe(const PeriodResult& load, const PeriodResult& ambient) {
     load_ = load;
     ambient_ = ambient;
     haveMeasurement_ = true;
+}
+
+void Sweep::onPeriod(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient) {
+    observe(load, ambient);
     if (state_ == SweepState::Cutoff) return;
 
     char buf[96];
@@ -226,13 +230,17 @@ void Sweep::onCommand(const Command& c, uint32_t nowMs) {
         case CmdType::Start:
             handleStart(c, nowMs);
             break;
+        case CmdType::PrbsLoad:
+        case CmdType::PrbsRun:
+        case CmdType::BadPrbs:
+            break;  // handled by the Supervisor (lib/supervisor), never by the sweep
         case CmdType::BadStart:
             snprintf(buf, sizeof buf, "REFUSED: usage: start | start N (N from 0 to %g)",
                      static_cast<double>(sweepcfg::kCapPercent));
             emit(buf);
             break;
         case CmdType::Unknown:
-            emit("UNKNOWN COMMAND: valid commands: start [N], stop, results, temp");
+            emit("UNKNOWN COMMAND: valid commands: start [N], stop, results, temp, prbs load N, prbs run");
             break;
         case CmdType::Stop:
             if (state_ == SweepState::HoldZero || state_ == SweepState::Running) {

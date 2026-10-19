@@ -36,6 +36,9 @@ public:
     void onCommand(const Command& c, uint32_t nowMs);
     // Once per measurement period, with the uncorrected results of both sensors.
     void onPeriod(uint32_t nowMs, const PeriodResult& load, const PeriodResult& ambient);
+    // Records the latest results for `temp` only: no cutoff check, no output, no change of state or duty.
+    // Used while a PRBS run owns the heater (plan D7).
+    void observe(const PeriodResult& load, const PeriodResult& ambient);
 
     uint16_t dutyCounts() const;  // desired duty, already capped; 0 after a cutoff
     SweepState state() const { return state_; }

@@ -1564,6 +1564,144 @@ void test_E13_cfg_start_at_cap_percent_runs_exactly_one_step_at_cap() {
     TEST_ASSERT_EQUAL_UINT16(kCapCounts, sw->row(0).dutyCounts);
 }
 
+// ---- T8: Sweep::observe and the new ready / unknown-command words (plan D7, D8) ----
+
+static bool hasExactLine(const char* want) {
+    for (const auto& l : sink.lines)
+        if (l == want) return true;
+    return false;
+}
+
+static std::string tempReply() {
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Temp), 5000);
+    TEST_ASSERT_EQUAL_UINT32(1, sink.lines.size());
+    return sink.lines[0];
+}
+
+void test_T8_observe_makes_temp_print_latest_values() {
+    sw->observe(pr(25.3f, 941.2f, 398), pr(24.8f, 923.0f, 397));
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Temp), 1100);
+    TEST_ASSERT_TRUE(sink.anyHas("TEMP"));
+    TEST_ASSERT_FALSE(sink.anyHas("no measurement"));
+    TEST_ASSERT_TRUE(sink.anyHas("25.3"));
+    TEST_ASSERT_TRUE(sink.anyHas("24.8"));
+    TEST_ASSERT_TRUE(sink.anyHas("941.2"));
+    TEST_ASSERT_TRUE(sink.anyHas("923.0"));
+    TEST_ASSERT_TRUE(sink.anyHas("398"));
+    TEST_ASSERT_TRUE(sink.anyHas("397"));
+}
+
+void test_T8_observe_temp_reply_equals_onPeriod_temp_reply() {
+    sw->observe(pr(31.4f, 1000.0f, 120), pr(22.2f, 900.0f, 119));
+    std::string viaObserve = tempReply();
+    delete sw;
+    sw = new Sweep(sink);
+    sw->begin(0);
+    sw->onPeriod(1000, pr(31.4f, 1000.0f, 120), pr(22.2f, 900.0f, 119));
+    std::string viaPeriod = tempReply();
+    TEST_ASSERT_EQUAL_STRING(viaPeriod.c_str(), viaObserve.c_str());
+}
+
+void test_T8_observe_prints_nothing() {
+    sink.lines.clear();
+    sw->observe(pr(25.0f), pr(25.0f));
+    sw->observe(pr(80.0f, 1800.0f), pr(25.0f, 4095.0f));
+    TEST_ASSERT_EQUAL_UINT32(0, sink.lines.size());
+}
+
+void test_T8_observe_keeps_latest_values_only() {
+    sw->observe(pr(25.3f, 941.2f, 398), pr(24.8f, 923.0f, 397));
+    sw->observe(pr(26.7f, 950.0f, 200), pr(23.1f, 910.0f, 201));
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Temp), 1100);
+    TEST_ASSERT_TRUE(sink.anyHas("26.7"));
+    TEST_ASSERT_TRUE(sink.anyHas("23.1"));
+    TEST_ASSERT_FALSE(sink.anyHas("25.3"));
+    TEST_ASSERT_FALSE(sink.anyHas("24.8"));
+}
+
+void test_T8_observe_sets_measurement_seen_so_start_is_not_refused_for_missing_measurement() {
+    sw->observe(pr(25.0f), pr(25.0f));
+    sink.lines.clear();
+    sw->onCommand(startCmd(), 1000);
+    TEST_ASSERT_FALSE(sink.anyHas("no measurement"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+}
+
+void test_T8_observe_at_80_C_does_not_latch_cutoff() {
+    sw->observe(pr(80.0f, 1800.0f), pr(25.0f));
+    TEST_ASSERT_FALSE(sink.anyHas("CUTOFF"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+    sw->observe(pr(95.0f, 1950.0f), pr(25.0f));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    TEST_ASSERT_TRUE(tempReply().find("80.0") == std::string::npos);
+}
+
+void test_T8_observe_rail_counts_do_not_latch_cutoff() {
+    sw->observe(pr(25.0f, 0.0f), pr(25.0f));
+    sw->observe(pr(25.0f, 4095.0f), pr(25.0f));
+    sw->observe(pr(25.0f), pr(25.0f, 0.0f));
+    sw->observe(pr(25.0f), pr(25.0f, 4095.0f));
+    TEST_ASSERT_FALSE(sink.anyHas("CUTOFF"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Idle);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+    // not latched: a later start with a sane measurement is accepted
+    sw->observe(pr(25.0f), pr(25.0f));
+    sw->onCommand(startCmd(), 1000);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+}
+
+void test_T8_observe_while_running_leaves_state_and_duty_unchanged() {
+    startAt(0.0f);
+    tickN(120, 25.0f, 25.0f);
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Running);
+    uint16_t duty = sw->dutyCounts();
+    TEST_ASSERT_TRUE(duty > 0);
+    size_t rows = sw->rowCount();
+    sink.lines.clear();
+    sw->observe(pr(85.0f, 1900.0f), pr(25.0f, 4095.0f));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Running);
+    TEST_ASSERT_EQUAL_UINT16(duty, sw->dutyCounts());
+    TEST_ASSERT_EQUAL_UINT32(rows, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT32(0, sink.lines.size());
+}
+
+void test_T8_observe_does_not_advance_the_settle_window() {
+    startAt(0.0f);
+    for (int i = 0; i < 300; i++) sw->observe(pr(25.0f), pr(25.0f));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::HoldZero);
+    TEST_ASSERT_FALSE(sw->offsetKnown());
+    TEST_ASSERT_EQUAL_UINT32(0, sw->rowCount());
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+}
+
+void test_T8_onPeriod_still_latches_cutoff_after_observe_change() {
+    sw->onPeriod(1000, pr(25.0f), pr(25.0f));
+    sink.lines.clear();
+    sw->onPeriod(2000, pr(80.0f, 1800.0f), pr(25.0f));
+    TEST_ASSERT_TRUE(sink.oneLineHasAll("CUTOFF", "load"));
+    TEST_ASSERT_TRUE(sw->state() == SweepState::Cutoff);
+    TEST_ASSERT_EQUAL_UINT16(0, sw->dutyCounts());
+    TEST_ASSERT_TRUE(tempReply().find("80.0") != std::string::npos);
+}
+
+void test_T8_ready_commands_line_lists_prbs_commands_exactly() {
+    std::string want = "commands: start [N] (N = 0.." + capText() +
+                       " %), stop, results, temp, prbs load N, prbs run";
+    TEST_ASSERT_TRUE_MESSAGE(hasExactLine(want.c_str()), want.c_str());
+}
+
+void test_T8_unknown_command_reply_lists_prbs_commands_exactly() {
+    sink.lines.clear();
+    sw->onCommand(cmd(CmdType::Unknown), 100);
+    const char* want =
+        "UNKNOWN COMMAND: valid commands: start [N], stop, results, temp, prbs load N, prbs run";
+    TEST_ASSERT_TRUE_MESSAGE(hasExactLine(want), want);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_AC1_ready_message_lists_commands_and_settle_values);
@@ -1670,5 +1808,17 @@ int main(int, char**) {
     RUN_TEST(test_E13_cfg_bad_start_usage_shows_configured_cap);
     RUN_TEST(test_AC2_AC10_cfg_full_sweep_last_step_is_cap_and_row_count_derived);
     RUN_TEST(test_E13_cfg_start_at_cap_percent_runs_exactly_one_step_at_cap);
+    RUN_TEST(test_T8_observe_makes_temp_print_latest_values);
+    RUN_TEST(test_T8_observe_temp_reply_equals_onPeriod_temp_reply);
+    RUN_TEST(test_T8_observe_prints_nothing);
+    RUN_TEST(test_T8_observe_keeps_latest_values_only);
+    RUN_TEST(test_T8_observe_sets_measurement_seen_so_start_is_not_refused_for_missing_measurement);
+    RUN_TEST(test_T8_observe_at_80_C_does_not_latch_cutoff);
+    RUN_TEST(test_T8_observe_rail_counts_do_not_latch_cutoff);
+    RUN_TEST(test_T8_observe_while_running_leaves_state_and_duty_unchanged);
+    RUN_TEST(test_T8_observe_does_not_advance_the_settle_window);
+    RUN_TEST(test_T8_onPeriod_still_latches_cutoff_after_observe_change);
+    RUN_TEST(test_T8_ready_commands_line_lists_prbs_commands_exactly);
+    RUN_TEST(test_T8_unknown_command_reply_lists_prbs_commands_exactly);
     return UNITY_END();
 }

@@ -39,6 +39,13 @@ void PeriodScheduler::start(uint32_t nowMs) {
     }
 }
 
+void PeriodScheduler::restart(uint32_t nowMs) {
+    started_ = true;
+    origin_ = nowMs;
+    haveSample_ = false;
+    reported_ = 0;
+}
+
 bool PeriodScheduler::takeSampleNow(uint32_t nowMs) {
     start(nowMs);
     const uint32_t phase = (nowMs - origin_) % kPeriodMs;

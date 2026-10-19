@@ -201,8 +201,124 @@ void test_E13_cfg_start_above_cap_percent_is_bad_start() {
     TEST_ASSERT_TRUE(parseOne(buf).type == CmdType::BadStart);
 }
 
+// ---- T6 (AC1, AC3 command forms): prbs commands ----
+
+namespace {
+// Like parseOne, but pre-fills count with a sentinel so a parser that forgets to set it is caught.
+Command parseOneSentinel(const char* text) {
+    LineBuffer lb;
+    Command out;
+    out.type = CmdType::None;
+    out.startPercent = -999.0f;
+    out.count = 12345u;
+    int done = 0;
+    Command result = out;
+    for (size_t i = 0; i < strlen(text); ++i) {
+        Command c = out;
+        if (lb.push(text[i], &c)) {
+            result = c;
+            done++;
+        }
+    }
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, done, text);
+    return result;
+}
+}  // namespace
+
+void test_AC1_prbs_load_31500() {
+    Command c = parseOneSentinel("prbs load 31500\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(31500u, c.count);
+}
+
+void test_AC1_prbs_load_zero() {
+    Command c = parseOneSentinel("prbs load 0\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(0u, c.count);
+}
+
+void test_AC1_prbs_load_nine_digits_is_exact() {
+    Command c = parseOneSentinel("prbs load 999999999\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(999999999u, c.count);
+}
+
+void test_AC1_prbs_load_more_than_nine_digits_saturates() {
+    Command c = parseOneSentinel("prbs load 1000000000\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, c.count);
+    Command d = parseOneSentinel("prbs load 99999999999999999999\n");
+    TEST_ASSERT_TRUE(d.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, d.count);
+}
+
+void test_AC1_prbs_load_trimmed_with_crlf() {
+    Command c = parseOneSentinel("  prbs load 42 \r\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsLoad);
+    TEST_ASSERT_EQUAL_UINT32(42u, c.count);
+}
+
+void test_AC3_prbs_run() {
+    Command c = parseOneSentinel("prbs run\n");
+    TEST_ASSERT_TRUE(c.type == CmdType::PrbsRun);
+    TEST_ASSERT_EQUAL_UINT32(0u, c.count);
+}
+
+void test_AC3_prbs_run_trimmed_with_crlf() {
+    TEST_ASSERT_TRUE(parseOneSentinel("  prbs run  \r\n").type == CmdType::PrbsRun);
+}
+
+void test_AC1_bad_prbs_forms() {
+    TEST_ASSERT_TRUE(parseOneSentinel("prbs\n").type == CmdType::BadPrbs);
+    TEST_ASSERT_TRUE(parseOneSentinel("prbs load\n").type == CmdType::BadPrbs);
+    TEST_ASSERT_TRUE(parseOneSentinel("prbs load x\n").type == CmdType::BadPrbs);
+    TEST_ASSERT_TRUE(parseOneSentinel("prbs foo\n").type == CmdType::BadPrbs);
+}
+
+void test_AC1_prbs_is_case_sensitive() {
+    TEST_ASSERT_TRUE(parseOneSentinel("PRBS run\n").type != CmdType::PrbsRun);
+    TEST_ASSERT_TRUE(parseOneSentinel("prbs RUN\n").type == CmdType::BadPrbs);
+}
+
+void test_T6_count_is_zero_for_non_load_commands() {
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("start 5\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("stop\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("results\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("temp\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("bogus\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("start abc\n").count);
+    TEST_ASSERT_EQUAL_UINT32(0u, parseOneSentinel("prbs foo\n").count);
+}
+
+void test_T6_sweep_commands_unchanged_with_prbs_present() {
+    TEST_ASSERT_TRUE(parseOneSentinel("start 10\n").type == CmdType::Start);
+    TEST_ASSERT_TRUE(parseOneSentinel("stop\n").type == CmdType::Stop);
+    TEST_ASSERT_TRUE(parseOneSentinel("foo\n").type == CmdType::Unknown);
+    TEST_ASSERT_TRUE(parseOneSentinel("start abc\n").type == CmdType::BadStart);
+}
+
+void test_T6_command_aggregate_init_with_two_members_compiles() {
+    float pct = 5.0f;
+    Command c{CmdType::Start, pct};
+    TEST_ASSERT_TRUE(c.type == CmdType::Start);
+    TEST_ASSERT_EQUAL_FLOAT(5.0f, c.startPercent);
+    TEST_ASSERT_EQUAL_UINT32(0u, c.count);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
+    RUN_TEST(test_AC1_prbs_load_31500);
+    RUN_TEST(test_AC1_prbs_load_zero);
+    RUN_TEST(test_AC1_prbs_load_nine_digits_is_exact);
+    RUN_TEST(test_AC1_prbs_load_more_than_nine_digits_saturates);
+    RUN_TEST(test_AC1_prbs_load_trimmed_with_crlf);
+    RUN_TEST(test_AC3_prbs_run);
+    RUN_TEST(test_AC3_prbs_run_trimmed_with_crlf);
+    RUN_TEST(test_AC1_bad_prbs_forms);
+    RUN_TEST(test_AC1_prbs_is_case_sensitive);
+    RUN_TEST(test_T6_count_is_zero_for_non_load_commands);
+    RUN_TEST(test_T6_sweep_commands_unchanged_with_prbs_present);
+    RUN_TEST(test_T6_command_aggregate_init_with_two_members_compiles);
     RUN_TEST(test_AC2_start_without_number_is_start_zero);
     RUN_TEST(test_AC2_start_10);
     RUN_TEST(test_AC2_start_0_and_25_are_accepted_bounds);
