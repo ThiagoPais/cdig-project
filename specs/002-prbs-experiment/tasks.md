@@ -155,7 +155,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 4 (M4): Supervisor and firmware glue
 
-- [ ] **T12: Add the `Supervisor` routing**
+- [x] **T12: Add the `Supervisor` routing**
   - Covers: AC3, AC8, AC9, E1, E2, E3, E10
   - Depends on: T6, T8, T11
   - Files: `lib/supervisor/include/supervisor.h` (new), `lib/supervisor/src/supervisor.cpp` (new), `test/test_supervisor/test_supervisor.cpp` (new)
@@ -163,7 +163,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T13: Print replies as `#` lines during a run**
+- [x] **T13: Print replies as `#` lines during a run**
   - Covers: AC6, E2 (`temp` answered)
   - Depends on: T12
   - Files: `lib/supervisor/include/supervisor.h`, `lib/supervisor/src/supervisor.cpp`, `test/test_supervisor/test_supervisor.cpp`
@@ -171,7 +171,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: no
   - Owner: agent
 
-- [ ] **T14: Wire `main.cpp` to the `Supervisor`**
+- [x] **T14: Wire `main.cpp` to the `Supervisor`**
   - Covers: none (unblocks the hardware checks of AC4, AC7, AC10; timing is verified in T20)
   - Depends on: T12, T13 (T7 from M2)
   - Files: `src/main.cpp`

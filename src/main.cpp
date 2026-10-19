@@ -1,11 +1,11 @@
-// Open-loop duty sweep firmware: hardware glue only (the logic lives in lib/measure and lib/sweep).
+// Open-loop duty sweep and PRBS experiment firmware: hardware glue only (the logic lives in lib/measure,
+// lib/sweep, lib/prbs and lib/supervisor).
 #include <Arduino.h>
 
 #include "SweepConfig.h"
-#include "commands.h"
 #include "duty.h"
 #include "measure.h"
-#include "sweep.h"
+#include "supervisor.h"
 
 namespace {
 
@@ -17,14 +17,14 @@ constexpr uint8_t kPinPwm = 14;            // D14 = GPIO14: TIP120 base (PWM)
 constexpr uint8_t kPwmChannel = 0;
 constexpr uint8_t kPwmBits = 12;
 constexpr uint32_t kSerialBaud = 115200;
+constexpr size_t kSerialRxBytes = 1024;  // no flow control: room for the 32 000-value load stream (plan D14)
 
 struct SerialSink : LineSink {
     void line(const char* text) override { Serial.println(text); }
 };
 
 SerialSink sink;
-Sweep sweep(sink);
-LineBuffer lineBuffer;
+Supervisor supervisor(sink);
 PeriodScheduler scheduler;
 WindowAverager loadAverager;
 WindowAverager ambientAverager;
@@ -42,6 +42,7 @@ void setup() {
     pinMode(kPinPwm, OUTPUT);
     digitalWrite(kPinPwm, LOW);
 
+    Serial.setRxBufferSize(kSerialRxBytes);  // must precede begin()
     Serial.begin(kSerialBaud);
 
     analogReadResolution(12);
@@ -52,18 +53,23 @@ void setup() {
     ledcAttachPin(kPinPwm, kPwmChannel);
     writeDutyCounts(0);
 
-    sweep.begin(millis());
+    supervisor.begin(millis());
 }
 
 void loop() {
     const uint32_t now = millis();
 
-    // Commands: one character at a time, never blocking.
+    // Serial input (commands and the PRBS load stream): one character at a time, never blocking.
     while (Serial.available() > 0) {
-        Command cmd;
-        if (lineBuffer.push(static_cast<char>(Serial.read()), &cmd)) {
-            sweep.onCommand(cmd, now);
-        }
+        supervisor.onChar(static_cast<char>(Serial.read()), now);
+    }
+    supervisor.tick(now);
+
+    // An accepted PRBS run makes second k of the run exactly measurement period k (plan D5).
+    if (supervisor.takeMeasurementRestart()) {
+        scheduler.restart(now);
+        loadAverager.reset();
+        ambientAverager.reset();
     }
 
     // One result per sensor per period: hand it to the sweep, then open the next window.
@@ -73,7 +79,7 @@ void loop() {
         const PeriodResult ambient = ambientAverager.result();
         loadAverager.reset();
         ambientAverager.reset();
-        sweep.onPeriod(now, load, ambient);
+        supervisor.onPeriod(now, load, ambient);
     }
 
     // Sampling: every 2 ms inside the first 800 ms of each 1 s period (plan D4).
@@ -82,7 +88,7 @@ void loop() {
         ambientAverager.add(static_cast<uint16_t>(analogRead(kPinAmbientSensor)));
     }
 
-    const uint16_t duty = sweep.dutyCounts();
+    const uint16_t duty = supervisor.dutyCounts();
     if (duty != writtenDuty) {
         writeDutyCounts(duty);
         writtenDuty = duty;
