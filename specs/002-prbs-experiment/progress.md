@@ -22,6 +22,7 @@ Feature: Open-loop PRBS experiment and data log
 - T17 — helper run log: `# RUN START` line and everything after it appended to the log (flush + `os.fsync` per line), earlier lines console-only, `# RUN END ok` -> 0, `# RUN END aborted` -> 1, non-conforming lines written as `# CORRUPT <line>` and counted on the console; log opened with `errors="replace"`; 12 new tests, 62 helper tests pass. Reviewer PASS.
 - T18 — helper incomplete endings: one `# LOG INCOMPLETE <reason>` marker (serial error, `no line received for %g s`, `board reset (READY seen)` with the READY line not logged, `interrupted by SIGINT|SIGTERM|SIGHUP`), exit 3, no `# RUN END`; signal handlers only in the main thread and restored; `LineReader` now polls once after the deadline so a paused helper does not see silence; 8 new tests (one takes ~15 s: SIGSTOP pause), 70 helper tests pass. Reviewer PASS.
 - Milestone M5 checkpoint (autonomous, no stop): T15-T18 done; all reviewers PASS first round; helper tests 70/70 (~20 s), `pio test -e native` 347/347, `pio run` OK.
+- T24 — full verify: `pio run && pio test -e native && python3 -m unittest discover -s test/helper -t test/helper` passes (firmware builds, 347 native tests, 70 helper tests). Deferred human rows are listed in tasks.md and above.
 - T3 — baseline recorded (no code change): flash 292317 bytes = 22.3 % of 1310720, RAM 27328 bytes = 8.3 % of 327680. Budget for A10: flash below 50 %. No review run: the task changes no file.
 
 ## Decision

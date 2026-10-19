@@ -274,7 +274,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 7 (M7): Validation and documentation sync
 
-- [ ] **T24: Run full verification**
+- [x] **T24: Run full verification**
   - Covers: every AC/E (verification only)
   - Depends on: every agent task (T1-T3, T6-T18)
   - Files: none
