@@ -46,7 +46,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
 
 ## Milestone 1 (M1): Environment validation and harnesses (little to look at: probe firmware, helper harness, two board checks)
 
-- [ ] **T1: Add the serial probe firmware and its environment**
+- [x] **T1: Add the serial probe firmware and its environment**
   - Covers: none (unblocks T4 and T5, the validation of A8, A9, A11, A12, A14)
   - Depends on: none
   - Files: `platformio.ini` (modify), `tools/probe/serial_probe.cpp` (new)
@@ -55,7 +55,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T2: Create the helper harness with `open_port`**
+- [x] **T2: Create the helper harness with `open_port`**
   - Covers: AC15 (port handling part; the board-side check is T4 and T21)
   - Depends on: none
   - Files: `tools/prbs_run.py` (new), `test/helper/test_prbs_run.py` (new), `.gitignore` (modify: add `__pycache__/`)
@@ -63,7 +63,7 @@ Waves are computed within a milestone (the executor stops at every checkpoint). 
   - Parallel: yes
   - Owner: agent
 
-- [ ] **T3: Record the flash and RAM baseline for the one-build decision**
+- [x] **T3: Record the flash and RAM baseline for the one-build decision**
   - Type: env-validation
   - Covers: A10
   - Depends on: none
